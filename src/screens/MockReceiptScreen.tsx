@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     height: 71, // Same height as continue button (including border)
     marginBottom: theme.spacing.lg,
     backgroundColor: "white",
-    borderWidth: 3,
+    borderWidth: 1,
     borderColor: theme.colors.primary,
     borderRadius: theme.borderRadius.md,
     alignItems: "center",

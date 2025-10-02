@@ -4,6 +4,7 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { SplashScreen } from "../screens/SplashScreen";
 import { PayeesScreen } from "../screens/PayeesScreen";
 import { CameraScreen } from "../screens/CameraScreen";
+import { OCRProcessingScreen } from "../screens/OCRProcessingScreen";
 import { MockReceiptScreen } from "../screens/MockReceiptScreen";
 import { ItemAssignmentScreen } from "../screens/ItemAssignmentScreen";
 import { TipScreen } from "../screens/TipScreen";
@@ -41,6 +42,7 @@ export const AppNavigator: React.FC = () => {
     useState<Currency>(DEFAULT_CURRENCY);
   const [restaurantName, setRestaurantName] = useState("");
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [extractedData, setExtractedData] = useState<any>(null);
 
   const handleSplashComplete = () => {
     setCurrentScreen("Payees");
@@ -59,11 +61,16 @@ export const AppNavigator: React.FC = () => {
 
   const handlePhotoTaken = (photoUri: string) => {
     setCapturedPhoto(photoUri);
-    setCurrentScreen("MockReceipt");
+    setCurrentScreen("OCRProcessing");
   };
 
   const handleCameraBack = () => {
     setCurrentScreen("Payees");
+  };
+
+  const handleOCRComplete = (data: any) => {
+    setExtractedData(data);
+    setCurrentScreen("MockReceipt");
   };
 
   const handleReceiptContinue = (receiptItems: ReceiptItem[]) => {
@@ -96,6 +103,8 @@ export const AppNavigator: React.FC = () => {
     setSubtotal(0);
     setSelectedCurrency(DEFAULT_CURRENCY);
     setRestaurantName("");
+    setCapturedPhoto(null);
+    setExtractedData(null);
   };
 
   const handleReceiptBack = () => {
@@ -117,6 +126,14 @@ export const AppNavigator: React.FC = () => {
         return (
           <CameraScreen
             onPhotoTaken={handlePhotoTaken}
+            onBack={handleCameraBack}
+          />
+        );
+      case "OCRProcessing":
+        return (
+          <OCRProcessingScreen
+            imageUri={capturedPhoto || ""}
+            onProcessingComplete={handleOCRComplete}
             onBack={handleCameraBack}
           />
         );

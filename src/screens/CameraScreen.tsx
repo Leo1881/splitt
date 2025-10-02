@@ -122,14 +122,17 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
             mode="picture"
           />
         ) : (
-          <View style={styles.galleryPlaceholder}>
+          <TouchableOpacity
+            style={styles.galleryPlaceholder}
+            onPress={pickImageFromGallery}
+          >
             <MaterialIcons
               name="photo-library"
               size={80}
               color={theme.colors.textSecondary}
             />
-            <Text style={styles.galleryText}>Gallery</Text>
-          </View>
+            <Text style={styles.galleryText}>Tap to select from gallery</Text>
+          </TouchableOpacity>
         )}
 
         {showCamera && (
@@ -146,7 +149,13 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
         <View style={styles.leftControl}>
           <TouchableOpacity
             style={styles.toggleButton}
-            onPress={() => setShowCamera(!showCamera)}
+            onPress={() => {
+              if (showCamera) {
+                setShowCamera(false);
+              } else {
+                setShowCamera(true);
+              }
+            }}
           >
             <MaterialIcons
               name={showCamera ? "photo-library" : "camera-alt"}
