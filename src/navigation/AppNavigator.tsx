@@ -3,6 +3,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { SplashScreen } from "../screens/SplashScreen";
 import { PayeesScreen } from "../screens/PayeesScreen";
+import { CameraScreen } from "../screens/CameraScreen";
 import { MockReceiptScreen } from "../screens/MockReceiptScreen";
 import { ItemAssignmentScreen } from "../screens/ItemAssignmentScreen";
 import { TipScreen } from "../screens/TipScreen";
@@ -39,6 +40,7 @@ export const AppNavigator: React.FC = () => {
   const [selectedCurrency, setSelectedCurrency] =
     useState<Currency>(DEFAULT_CURRENCY);
   const [restaurantName, setRestaurantName] = useState("");
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
 
   const handleSplashComplete = () => {
     setCurrentScreen("Payees");
@@ -52,7 +54,16 @@ export const AppNavigator: React.FC = () => {
     setPayees(payeesData);
     setSelectedCurrency(currency);
     setRestaurantName(restaurant);
+    setCurrentScreen("Camera");
+  };
+
+  const handlePhotoTaken = (photoUri: string) => {
+    setCapturedPhoto(photoUri);
     setCurrentScreen("MockReceipt");
+  };
+
+  const handleCameraBack = () => {
+    setCurrentScreen("Payees");
   };
 
   const handleReceiptContinue = (receiptItems: ReceiptItem[]) => {
@@ -100,6 +111,13 @@ export const AppNavigator: React.FC = () => {
           <PayeesScreen
             onContinue={handlePayeesContinue}
             initialPayees={payees}
+          />
+        );
+      case "Camera":
+        return (
+          <CameraScreen
+            onPhotoTaken={handlePhotoTaken}
+            onBack={handleCameraBack}
           />
         );
       case "MockReceipt":
