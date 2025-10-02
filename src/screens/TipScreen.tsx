@@ -14,7 +14,7 @@ export const TipScreen: React.FC<TipScreenProps> = ({
   subtotal,
   onContinue,
 }) => {
-  const [tipPercentage, setTipPercentage] = useState(18);
+  const [tipPercentage, setTipPercentage] = useState(10);
   const [customTip, setCustomTip] = useState("");
   const [useCustomTip, setUseCustomTip] = useState(false);
 
