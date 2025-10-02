@@ -21,10 +21,14 @@ interface Payee {
 
 interface PayeesScreenProps {
   onContinue: (payees: Payee[]) => void;
+  initialPayees?: Payee[];
 }
 
-export const PayeesScreen: React.FC<PayeesScreenProps> = ({ onContinue }) => {
-  const [payees, setPayees] = useState<Payee[]>([]);
+export const PayeesScreen: React.FC<PayeesScreenProps> = ({
+  onContinue,
+  initialPayees = [],
+}) => {
+  const [payees, setPayees] = useState<Payee[]>(initialPayees);
   const [newPayeeName, setNewPayeeName] = useState("");
 
   const addPayee = () => {

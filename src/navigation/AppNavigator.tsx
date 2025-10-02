@@ -75,14 +75,28 @@ export const AppNavigator: React.FC = () => {
     setSubtotal(0);
   };
 
+  const handleReceiptBack = () => {
+    setCurrentScreen("Payees");
+  };
+
   const renderCurrentScreen = () => {
     switch (currentScreen) {
       case "Splash":
         return <SplashScreen onComplete={handleSplashComplete} />;
       case "Payees":
-        return <PayeesScreen onContinue={handlePayeesContinue} />;
+        return (
+          <PayeesScreen
+            onContinue={handlePayeesContinue}
+            initialPayees={payees}
+          />
+        );
       case "MockReceipt":
-        return <MockReceiptScreen onContinue={handleReceiptContinue} />;
+        return (
+          <MockReceiptScreen
+            onContinue={handleReceiptContinue}
+            onBack={handleReceiptBack}
+          />
+        );
       case "ItemAssignment":
         return (
           <ItemAssignmentScreen

@@ -1,5 +1,11 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
@@ -14,6 +20,7 @@ interface ReceiptItem {
 
 interface MockReceiptScreenProps {
   onContinue: (items: ReceiptItem[]) => void;
+  onBack?: () => void;
 }
 
 // Mock receipt data for testing
@@ -28,6 +35,7 @@ const mockReceiptData: ReceiptItem[] = [
 
 export const MockReceiptScreen: React.FC<MockReceiptScreenProps> = ({
   onContinue,
+  onBack,
 }) => {
   const subtotal = mockReceiptData.reduce((sum, item) => sum + item.price, 0);
   const tax = subtotal * 0.08; // 8% tax
@@ -90,13 +98,24 @@ export const MockReceiptScreen: React.FC<MockReceiptScreenProps> = ({
         </View>
 
         <View style={styles.continueSection}>
-          <Button
-            title="Continue to Assign Items"
-            onPress={handleContinue}
-            variant="primary"
-            size="large"
-            style={styles.continueButton}
-          />
+          <View style={styles.buttonContainer}>
+            {onBack && (
+              <TouchableOpacity
+                onPress={onBack}
+                style={styles.backButton}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.backButtonText}>‹</Text>
+              </TouchableOpacity>
+            )}
+            <Button
+              title="Continue to Assign Items"
+              onPress={handleContinue}
+              variant="primary"
+              size="large"
+              style={styles.continueButton}
+            />
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -214,7 +233,41 @@ const styles = StyleSheet.create({
   continueSection: {
     marginTop: "auto",
   },
+  buttonContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+  },
   continueButton: {
+    flex: 1,
     marginBottom: theme.spacing.lg,
+  },
+  backButton: {
+    width: 71, // Square: same as height
+    height: 71, // Same height as continue button (including border)
+    marginBottom: theme.spacing.lg,
+    backgroundColor: "white",
+    borderWidth: 3,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backButtonText: {
+    color: theme.colors.primary,
+    fontSize: 28,
+    fontWeight: "900",
+    margin: 0,
+    padding: 0,
+    marginTop: 0,
+    marginBottom: 0,
+    marginLeft: 0,
+    marginRight: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
+    paddingLeft: 0,
+    paddingRight: 0,
+    textAlign: "center",
+    lineHeight: 28,
   },
 });
