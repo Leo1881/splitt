@@ -147,15 +147,15 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
           <Text style={styles.summaryTitle}>Total Bill</Text>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal</Text>
-            <Text style={styles.summaryValue}>${subtotal.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>R{subtotal.toFixed(2)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Tip</Text>
-            <Text style={styles.summaryValue}>${tipAmount.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>R{tipAmount.toFixed(2)}</Text>
           </View>
           <View style={[styles.summaryRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>${total.toFixed(2)}</Text>
+            <Text style={styles.totalValue}>R{total.toFixed(2)}</Text>
           </View>
         </Card>
 
@@ -172,7 +172,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
                   </View>
                   <Text style={styles.payeeName}>{payee.name}</Text>
                 </View>
-                <Text style={styles.payeeTotal}>${payee.total.toFixed(2)}</Text>
+                <Text style={styles.payeeTotal}>R{payee.total.toFixed(2)}</Text>
               </View>
 
               <View style={styles.payeeItems}>
@@ -180,7 +180,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
                   <View key={itemIndex} style={styles.itemRow}>
                     <Text style={styles.itemName}>{item.name}</Text>
                     <Text style={styles.itemAmount}>
-                      ${item.amount.toFixed(2)}
+                      R{item.amount.toFixed(2)}
                     </Text>
                   </View>
                 ))}
@@ -190,13 +190,13 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Items</Text>
                   <Text style={styles.breakdownValue}>
-                    ${payee.subtotal.toFixed(2)}
+                    R{payee.subtotal.toFixed(2)}
                   </Text>
                 </View>
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Tip</Text>
                   <Text style={styles.breakdownValue}>
-                    ${payee.tip.toFixed(2)}
+                    R{payee.tip.toFixed(2)}
                   </Text>
                 </View>
               </View>

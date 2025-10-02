@@ -53,15 +53,15 @@ export const TipScreen: React.FC<TipScreenProps> = ({
           <Text style={styles.summaryTitle}>Bill Summary</Text>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal</Text>
-            <Text style={styles.summaryValue}>${subtotal.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>R{subtotal.toFixed(2)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Tip</Text>
-            <Text style={styles.summaryValue}>${tipAmount.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>R{tipAmount.toFixed(2)}</Text>
           </View>
           <View style={[styles.summaryRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>${total.toFixed(2)}</Text>
+            <Text style={styles.totalValue}>R{total.toFixed(2)}</Text>
           </View>
         </Card>
 
@@ -87,7 +87,7 @@ export const TipScreen: React.FC<TipScreenProps> = ({
           <View style={styles.customTipSection}>
             <Text style={styles.customTipLabel}>Custom Tip Amount</Text>
             <View style={styles.customTipContainer}>
-              <Text style={styles.dollarSign}>$</Text>
+              <Text style={styles.dollarSign}>R</Text>
               <TextInput
                 style={styles.customTipInput}
                 placeholder="0.00"

@@ -154,7 +154,7 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
         // Fallback to equal split
         const names = assignment.payees.map((p) => p.name).join(", ");
         const pricePerPerson = item.price / assignment.payees.length;
-        return `Split between ${names} - $${pricePerPerson.toFixed(2)} each`;
+        return `Split between ${names} - R${pricePerPerson.toFixed(2)} each`;
       }
     } else {
       return assignment.payees[0].name;
@@ -194,7 +194,7 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
                       ? `${item.name} x${item.quantity}`
                       : item.name}
                   </Text>
-                  <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+                  <Text style={styles.itemPrice}>R{item.price.toFixed(2)}</Text>
                 </View>
 
                 <View style={styles.assignmentRow}>
@@ -252,7 +252,7 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
               {selectedItem?.quantity && selectedItem.quantity > 1
                 ? `${selectedItem.name} x${selectedItem.quantity}`
                 : selectedItem?.name}
-              " - ${selectedItem?.price.toFixed(2)}
+              {" - R" + selectedItem?.price.toFixed(2)}
             </Text>
             <Text style={styles.modalSubtitle}>Who ordered this item?</Text>
 
@@ -276,11 +276,6 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
                     </View>
                     <Text style={styles.payeeName}>{payee.name}</Text>
                   </View>
-                  <Ionicons
-                    name="checkmark-circle-outline"
-                    size={24}
-                    color={theme.colors.textSecondary}
-                  />
                 </TouchableOpacity>
               ))}
             </View>
@@ -312,7 +307,7 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
               {selectedItem?.quantity && selectedItem.quantity > 1
                 ? `${selectedItem.name} x${selectedItem.quantity}`
                 : selectedItem?.name}
-              " - ${selectedItem?.price.toFixed(2)}
+              {" - R" + selectedItem?.price.toFixed(2)}
             </Text>
             <Text style={styles.modalSubtitle}>Who's sharing this item?</Text>
 
@@ -609,7 +604,7 @@ const styles = StyleSheet.create({
   payeeOption: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     padding: theme.spacing.md,
     borderRadius: theme.borderRadius.md,
     marginBottom: theme.spacing.sm,

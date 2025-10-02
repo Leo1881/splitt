@@ -67,7 +67,7 @@ export const MockReceiptScreen: React.FC<MockReceiptScreenProps> = ({
                     ? `${item.name} x${item.quantity}`
                     : item.name}
                 </Text>
-                <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+                <Text style={styles.itemPrice}>R{item.price.toFixed(2)}</Text>
               </View>
             ))}
           </View>
@@ -77,15 +77,15 @@ export const MockReceiptScreen: React.FC<MockReceiptScreenProps> = ({
           <View style={styles.totalsContainer}>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Subtotal</Text>
-              <Text style={styles.totalValue}>${subtotal.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>R{subtotal.toFixed(2)}</Text>
             </View>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Tax (8%)</Text>
-              <Text style={styles.totalValue}>${tax.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>R{tax.toFixed(2)}</Text>
             </View>
             <View style={[styles.totalRow, styles.finalTotal]}>
               <Text style={styles.finalTotalLabel}>Total</Text>
-              <Text style={styles.finalTotalValue}>${total.toFixed(2)}</Text>
+              <Text style={styles.finalTotalValue}>R{total.toFixed(2)}</Text>
             </View>
           </View>
         </Card>
