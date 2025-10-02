@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { theme } from "../constants/theme";
+import { shareBillPDF, BillData } from "../utils/pdfGenerator";
 
 interface Payee {
   id: string;
@@ -37,6 +38,11 @@ interface ReviewScreenProps {
   assignments: ItemAssignment[];
   tipAmount: number;
   subtotal: number;
+  currency: {
+    symbol: string;
+    code: string;
+  };
+  restaurantName: string;
   onShare: () => void;
   onStartOver: () => void;
 }
@@ -47,6 +53,8 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
   assignments,
   tipAmount,
   subtotal,
+  currency,
+  restaurantName,
   onShare,
   onStartOver,
 }) => {
@@ -207,7 +215,31 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
         <View style={styles.actionsSection}>
           <Button
             title="Share Breakdown"
-            onPress={onShare}
+            onPress={async () => {
+              try {
+                const payeeTotals = calculatePayeeTotals();
+                const total = subtotal + tipAmount;
+                const tipPercentage = Math.round((tipAmount / subtotal) * 100);
+
+                const billData: BillData = {
+                  restaurantName: restaurantName,
+                  currency: currency,
+                  subtotal: subtotal,
+                  tipAmount: tipAmount,
+                  tipPercentage: tipPercentage,
+                  total: total,
+                  payees: payees, // Pass the original payees with id field
+                  items: items,
+                  assignments: assignments,
+                };
+
+                await shareBillPDF(billData);
+              } catch (error) {
+                console.error("Share failed:", error);
+                // Fallback to original onShare if PDF fails
+                onShare();
+              }
+            }}
             variant="primary"
             size="large"
             style={styles.shareButton}

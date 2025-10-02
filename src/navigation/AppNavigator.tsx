@@ -137,6 +137,7 @@ export const AppNavigator: React.FC = () => {
             tipAmount={tipAmount}
             subtotal={subtotal}
             currency={selectedCurrency}
+            restaurantName={restaurantName}
             onShare={handleShare}
             onStartOver={handleStartOver}
           />
