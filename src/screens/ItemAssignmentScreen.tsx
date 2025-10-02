@@ -83,17 +83,19 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
   const handleSplitAssignment = () => {
     if (!selectedItem || selectedPayees.length < 2) return;
 
-    // Validate that quantities add up to total quantity
-    const totalAssigned = Object.values(payeeQuantities).reduce(
-      (sum, qty) => sum + qty,
-      0
-    );
-    if (totalAssigned !== selectedItem.quantity) {
-      Alert.alert(
-        "Invalid Quantities",
-        `Total assigned (${totalAssigned}) must equal item quantity (${selectedItem.quantity})`
+    // Only validate quantities for items with quantity > 1
+    if (selectedItem.quantity > 1) {
+      const totalAssigned = Object.values(payeeQuantities).reduce(
+        (sum, qty) => sum + qty,
+        0
       );
-      return;
+      if (totalAssigned !== selectedItem.quantity) {
+        Alert.alert(
+          "Invalid Quantities",
+          `Total assigned (${totalAssigned}) must equal item quantity (${selectedItem.quantity})`
+        );
+        return;
+      }
     }
 
     setAssignments(
@@ -143,8 +145,8 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
       const item = items.find((i) => i.id === assignment.itemId);
       if (!item) return "Split between multiple people";
 
-      if (assignment.quantities) {
-        // Show individual quantities
+      if (assignment.quantities && item.quantity > 1) {
+        // Show individual quantities for multiple items
         const assignments = assignment.payees.map((payee) => {
           const quantity = assignment.quantities![payee.id] || 0;
           return `${payee.name} (${quantity})`;
@@ -153,8 +155,13 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
       } else {
         // Fallback to equal split
         const names = assignment.payees.map((p) => p.name).join(", ");
-        const pricePerPerson = item.price / assignment.payees.length;
-        return `Split between ${names} - R${pricePerPerson.toFixed(2)} each`;
+        // For single items, just show names without price
+        if (item.quantity === 1) {
+          return names;
+        } else {
+          const pricePerPerson = item.price / assignment.payees.length;
+          return `Split between ${names} - R${pricePerPerson.toFixed(2)} each`;
+        }
       }
     } else {
       return assignment.payees[0].name;
@@ -248,7 +255,6 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
-              Assign "
               {selectedItem?.quantity && selectedItem.quantity > 1
                 ? `${selectedItem.name} x${selectedItem.quantity}`
                 : selectedItem?.name}
@@ -303,7 +309,6 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
-              Split "
               {selectedItem?.quantity && selectedItem.quantity > 1
                 ? `${selectedItem.name} x${selectedItem.quantity}`
                 : selectedItem?.name}
