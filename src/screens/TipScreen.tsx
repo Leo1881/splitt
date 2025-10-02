@@ -4,14 +4,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { theme } from "../constants/theme";
+import { Currency } from "../constants/currencies";
 
 interface TipScreenProps {
   subtotal: number;
+  currency: Currency;
   onContinue: (tipAmount: number, tipPercentage: number) => void;
 }
 
 export const TipScreen: React.FC<TipScreenProps> = ({
   subtotal,
+  currency,
   onContinue,
 }) => {
   const [tipPercentage, setTipPercentage] = useState(10);
@@ -53,15 +56,24 @@ export const TipScreen: React.FC<TipScreenProps> = ({
           <Text style={styles.summaryTitle}>Bill Summary</Text>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal</Text>
-            <Text style={styles.summaryValue}>R{subtotal.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>
+              {currency.symbol}
+              {subtotal.toFixed(2)}
+            </Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Tip</Text>
-            <Text style={styles.summaryValue}>R{tipAmount.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>
+              {currency.symbol}
+              {tipAmount.toFixed(2)}
+            </Text>
           </View>
           <View style={[styles.summaryRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>R{total.toFixed(2)}</Text>
+            <Text style={styles.totalValue}>
+              {currency.symbol}
+              {total.toFixed(2)}
+            </Text>
           </View>
         </Card>
 
@@ -87,7 +99,7 @@ export const TipScreen: React.FC<TipScreenProps> = ({
           <View style={styles.customTipSection}>
             <Text style={styles.customTipLabel}>Custom Tip Amount</Text>
             <View style={styles.customTipContainer}>
-              <Text style={styles.dollarSign}>R</Text>
+              <Text style={styles.dollarSign}>{currency.symbol}</Text>
               <TextInput
                 style={styles.customTipInput}
                 placeholder="0.00"

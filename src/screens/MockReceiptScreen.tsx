@@ -10,6 +10,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { theme } from "../constants/theme";
+import { Currency } from "../constants/currencies";
 
 interface ReceiptItem {
   id: string;
@@ -19,6 +20,8 @@ interface ReceiptItem {
 }
 
 interface MockReceiptScreenProps {
+  currency: Currency;
+  restaurantName: string;
   onContinue: (items: ReceiptItem[]) => void;
   onBack?: () => void;
 }
@@ -34,6 +37,8 @@ const mockReceiptData: ReceiptItem[] = [
 ];
 
 export const MockReceiptScreen: React.FC<MockReceiptScreenProps> = ({
+  currency,
+  restaurantName,
   onContinue,
   onBack,
 }) => {
@@ -56,7 +61,7 @@ export const MockReceiptScreen: React.FC<MockReceiptScreenProps> = ({
         </View>
 
         <Card style={styles.receiptCard}>
-          <Text style={styles.receiptTitle}>🍕 Mario's Italian Restaurant</Text>
+          <Text style={styles.receiptTitle}>🍕 {restaurantName}</Text>
           <Text style={styles.receiptDate}>December 15, 2024 • 7:30 PM</Text>
 
           <View style={styles.itemsContainer}>
@@ -67,7 +72,10 @@ export const MockReceiptScreen: React.FC<MockReceiptScreenProps> = ({
                     ? `${item.name} x${item.quantity}`
                     : item.name}
                 </Text>
-                <Text style={styles.itemPrice}>R{item.price.toFixed(2)}</Text>
+                <Text style={styles.itemPrice}>
+                  {currency.symbol}
+                  {item.price.toFixed(2)}
+                </Text>
               </View>
             ))}
           </View>
@@ -77,15 +85,24 @@ export const MockReceiptScreen: React.FC<MockReceiptScreenProps> = ({
           <View style={styles.totalsContainer}>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Subtotal</Text>
-              <Text style={styles.totalValue}>R{subtotal.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>
+                {currency.symbol}
+                {subtotal.toFixed(2)}
+              </Text>
             </View>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Tax (8%)</Text>
-              <Text style={styles.totalValue}>R{tax.toFixed(2)}</Text>
+              <Text style={styles.totalValue}>
+                {currency.symbol}
+                {tax.toFixed(2)}
+              </Text>
             </View>
             <View style={[styles.totalRow, styles.finalTotal]}>
               <Text style={styles.finalTotalLabel}>Total</Text>
-              <Text style={styles.finalTotalValue}>R{total.toFixed(2)}</Text>
+              <Text style={styles.finalTotalValue}>
+                {currency.symbol}
+                {total.toFixed(2)}
+              </Text>
             </View>
           </View>
         </Card>

@@ -8,6 +8,7 @@ import { ItemAssignmentScreen } from "../screens/ItemAssignmentScreen";
 import { TipScreen } from "../screens/TipScreen";
 import { ReviewScreen } from "../screens/ReviewScreen";
 import { theme } from "../constants/theme";
+import { Currency, DEFAULT_CURRENCY } from "../constants/currencies";
 
 const Stack = createStackNavigator();
 
@@ -35,13 +36,22 @@ export const AppNavigator: React.FC = () => {
   const [assignments, setAssignments] = useState<ItemAssignment[]>([]);
   const [tipAmount, setTipAmount] = useState(0);
   const [subtotal, setSubtotal] = useState(0);
+  const [selectedCurrency, setSelectedCurrency] =
+    useState<Currency>(DEFAULT_CURRENCY);
+  const [restaurantName, setRestaurantName] = useState("");
 
   const handleSplashComplete = () => {
     setCurrentScreen("Payees");
   };
 
-  const handlePayeesContinue = (payeesData: Payee[]) => {
+  const handlePayeesContinue = (
+    payeesData: Payee[],
+    currency: Currency,
+    restaurant: string
+  ) => {
     setPayees(payeesData);
+    setSelectedCurrency(currency);
+    setRestaurantName(restaurant);
     setCurrentScreen("MockReceipt");
   };
 
@@ -73,6 +83,8 @@ export const AppNavigator: React.FC = () => {
     setAssignments([]);
     setTipAmount(0);
     setSubtotal(0);
+    setSelectedCurrency(DEFAULT_CURRENCY);
+    setRestaurantName("");
   };
 
   const handleReceiptBack = () => {
@@ -93,6 +105,8 @@ export const AppNavigator: React.FC = () => {
       case "MockReceipt":
         return (
           <MockReceiptScreen
+            currency={selectedCurrency}
+            restaurantName={restaurantName}
             onContinue={handleReceiptContinue}
             onBack={handleReceiptBack}
           />
@@ -102,11 +116,18 @@ export const AppNavigator: React.FC = () => {
           <ItemAssignmentScreen
             items={items}
             payees={payees}
+            currency={selectedCurrency}
             onContinue={handleItemAssignmentContinue}
           />
         );
       case "Tip":
-        return <TipScreen subtotal={subtotal} onContinue={handleTipContinue} />;
+        return (
+          <TipScreen
+            subtotal={subtotal}
+            currency={selectedCurrency}
+            onContinue={handleTipContinue}
+          />
+        );
       case "Review":
         return (
           <ReviewScreen
@@ -115,6 +136,7 @@ export const AppNavigator: React.FC = () => {
             assignments={assignments}
             tipAmount={tipAmount}
             subtotal={subtotal}
+            currency={selectedCurrency}
             onShare={handleShare}
             onStartOver={handleStartOver}
           />
