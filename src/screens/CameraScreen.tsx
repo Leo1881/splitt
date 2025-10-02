@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    padding: theme.spacing.lg,
+    padding: theme.spacing.md,
   },
   title: {
     ...theme.typography.h2,
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   },
   cameraContainer: {
     flex: 1,
-    margin: theme.spacing.lg,
+    margin: theme.spacing.md,
     borderRadius: theme.borderRadius.lg,
     overflow: "hidden",
   },
@@ -294,7 +294,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.lg,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.xs,
   },
   leftControl: {
     flex: 1,
