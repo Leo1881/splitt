@@ -52,7 +52,12 @@ export const MockReceiptScreen: React.FC<MockReceiptScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        bounces={true}
+        scrollEnabled={true}
+      >
         <View style={styles.header}>
           <Text style={styles.title}>Receipt Scanned</Text>
           <Text style={styles.subtitle}>

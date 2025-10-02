@@ -46,7 +46,12 @@ export const TipScreen: React.FC<TipScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        bounces={true}
+        scrollEnabled={true}
+      >
         <View style={styles.header}>
           <Text style={styles.title}>Add Tip</Text>
           <Text style={styles.subtitle}>How much would you like to tip?</Text>

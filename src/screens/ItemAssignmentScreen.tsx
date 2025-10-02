@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { theme } from "../constants/theme";
@@ -182,7 +183,12 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        bounces={true}
+        scrollEnabled={true}
+      >
         <View style={styles.header}>
           <Text style={styles.title}>Assign Items</Text>
           <Text style={styles.subtitle}>
@@ -215,7 +221,11 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
                     <Text style={styles.assignButtonText}>
                       {getAssignmentText(assignment!)}
                     </Text>
-                    <Ionicons name="chevron-forward" size={20} color="white" />
+                    <MaterialIcons
+                      name="chevron-right"
+                      size={20}
+                      color="white"
+                    />
                   </TouchableOpacity>
 
                   <TouchableOpacity

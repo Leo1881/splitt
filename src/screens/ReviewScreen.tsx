@@ -145,7 +145,12 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        bounces={true}
+        scrollEnabled={true}
+      >
         <View style={styles.header}>
           <Text style={styles.title}>Bill Breakdown</Text>
           <Text style={styles.subtitle}>Here's how much each person owes</Text>
