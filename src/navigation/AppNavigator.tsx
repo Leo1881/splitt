@@ -5,6 +5,7 @@ import { SplashScreen } from "../screens/SplashScreen";
 import { PayeesScreen } from "../screens/PayeesScreen";
 import { CameraScreen } from "../screens/CameraScreen";
 import { OCRProcessingScreen } from "../screens/OCRProcessingScreen";
+import { OCRDataScreen } from "../screens/OCRDataScreen";
 import { MockReceiptScreen } from "../screens/MockReceiptScreen";
 import { ItemAssignmentScreen } from "../screens/ItemAssignmentScreen";
 import { TipScreen } from "../screens/TipScreen";
@@ -137,6 +138,14 @@ export const AppNavigator: React.FC = () => {
             onBack={handleCameraBack}
           />
         );
+      case "OCRData":
+        return (
+          <OCRDataScreen
+            extractedData={extractedData}
+            onContinue={() => setCurrentScreen("MockReceipt")}
+            onBack={() => setCurrentScreen("MockReceipt")}
+          />
+        );
       case "MockReceipt":
         return (
           <MockReceiptScreen
@@ -144,6 +153,7 @@ export const AppNavigator: React.FC = () => {
             restaurantName={restaurantName}
             onContinue={handleReceiptContinue}
             onBack={handleReceiptBack}
+            onViewOCRData={() => setCurrentScreen("OCRData")}
           />
         );
       case "ItemAssignment":

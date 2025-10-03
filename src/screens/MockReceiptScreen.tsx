@@ -24,6 +24,7 @@ interface MockReceiptScreenProps {
   restaurantName: string;
   onContinue: (items: ReceiptItem[]) => void;
   onBack?: () => void;
+  onViewOCRData?: () => void;
 }
 
 // Mock receipt data for testing
@@ -41,6 +42,7 @@ export const MockReceiptScreen: React.FC<MockReceiptScreenProps> = ({
   restaurantName,
   onContinue,
   onBack,
+  onViewOCRData,
 }) => {
   const subtotal = mockReceiptData.reduce((sum, item) => sum + item.price, 0);
   const tax = subtotal * 0.08; // 8% tax
@@ -137,6 +139,15 @@ export const MockReceiptScreen: React.FC<MockReceiptScreenProps> = ({
               size="large"
               style={styles.continueButton}
             />
+            {onViewOCRData && (
+              <Button
+                title="View OCR Data (Dev)"
+                onPress={onViewOCRData}
+                variant="outline"
+                size="small"
+                style={styles.devButton}
+              />
+            )}
           </View>
         </View>
       </ScrollView>
@@ -291,5 +302,8 @@ const styles = StyleSheet.create({
     paddingRight: 0,
     textAlign: "center",
     lineHeight: 28,
+  },
+  devButton: {
+    marginTop: theme.spacing.sm,
   },
 });

@@ -4,79 +4,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Button } from "../components/Button";
 import { theme } from "../constants/theme";
-
-// Function to parse OCR text into structured receipt data
-const parseReceiptText = (text: string) => {
-  const lines = text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-
-  let restaurantName = "Unknown Restaurant";
-  const items: Array<{ name: string; price: number; quantity: number }> = [];
-  let subtotal = 0;
-  let tax = 0;
-  let total = 0;
-
-  // Look for restaurant name (usually first few lines)
-  for (let i = 0; i < Math.min(3, lines.length); i++) {
-    if (lines[i].length > 3 && !lines[i].match(/\d/)) {
-      restaurantName = lines[i];
-      break;
-    }
-  }
-
-  // Look for items and prices
-  const pricePattern = /\$?(\d+\.?\d*)/;
-  const itemPattern = /^[A-Za-z\s]+$/;
-
-  for (const line of lines) {
-    const priceMatch = line.match(pricePattern);
-    if (priceMatch) {
-      const price = parseFloat(priceMatch[1]);
-
-      // Check if this looks like an item line
-      const beforePrice = line.substring(0, line.indexOf(priceMatch[0])).trim();
-      if (beforePrice.length > 2 && beforePrice.length < 30) {
-        items.push({
-          name: beforePrice,
-          price: price,
-          quantity: 1,
-        });
-        subtotal += price;
-      }
-
-      // Look for total, tax, subtotal keywords
-      const lowerLine = line.toLowerCase();
-      if (lowerLine.includes("total") || lowerLine.includes("amount")) {
-        total = price;
-      } else if (lowerLine.includes("tax")) {
-        tax = price;
-      }
-    }
-  }
-
-  // If we couldn't find a total, calculate it
-  if (total === 0) {
-    total = subtotal + tax;
-  }
-
-  return {
-    restaurantName,
-    items:
-      items.length > 0
-        ? items
-        : [
-            { name: "Item 1", price: 10.0, quantity: 1 },
-            { name: "Item 2", price: 5.5, quantity: 1 },
-          ],
-    subtotal: subtotal > 0 ? subtotal : 15.5,
-    tax: tax > 0 ? tax : 1.24,
-    total: total > 0 ? total : 16.74,
-    date: new Date().toISOString(),
-    rawText: text,
-  };
-};
+import {
+  extractTextFromImage,
+  parseReceiptText,
+} from "../utils/googleVisionAPI";
 
 interface OCRProcessingScreenProps {
   imageUri: string;
@@ -108,10 +39,15 @@ export const OCRProcessingScreen: React.FC<OCRProcessingScreenProps> = ({
         setProgress(20);
         await new Promise((resolve) => setTimeout(resolve, 500));
 
-        // Step 2: Extracting text from receipt
+        // Step 2: Extracting text from receipt using Google Vision API
         setProcessingStep(1);
         setProgress(40);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        const ocrResult = await extractTextFromImage(imageUri);
+
+        if (!ocrResult.success) {
+          throw new Error(ocrResult.error || "OCR processing failed");
+        }
 
         // Step 3: Parsing receipt data
         setProcessingStep(2);
@@ -121,43 +57,30 @@ export const OCRProcessingScreen: React.FC<OCRProcessingScreenProps> = ({
         // Step 4: Identifying items and prices
         setProcessingStep(3);
         setProgress(80);
-        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Parse the extracted text into structured data
+        const extractedData = parseReceiptText(ocrResult.text);
 
         // Step 5: Finalizing results
         setProcessingStep(4);
         setProgress(100);
         await new Promise((resolve) => setTimeout(resolve, 300));
 
-        // For now, use realistic mock data that simulates OCR results
-        const mockExtractedData = {
-          restaurantName: "Sample Restaurant",
-          items: [
-            { name: "Chicken Burger", price: 12.99, quantity: 1 },
-            { name: "French Fries", price: 4.5, quantity: 1 },
-            { name: "Coca Cola", price: 2.99, quantity: 1 },
-            { name: "Apple Pie", price: 3.25, quantity: 1 },
-          ],
-          subtotal: 23.73,
-          tax: 1.9,
-          total: 25.63,
-          date: new Date().toISOString(),
-          rawText:
-            "Sample Restaurant\nChicken Burger $12.99\nFrench Fries $4.50\nCoca Cola $2.99\nApple Pie $3.25\nSubtotal: $23.73\nTax: $1.90\nTotal: $25.63",
-        };
-
-        // Complete processing
-        onProcessingComplete(mockExtractedData);
+        // Complete processing with real OCR data
+        onProcessingComplete(extractedData);
       } catch (error) {
         console.error("OCR Error:", error);
         // Fallback to mock data if OCR fails
         const fallbackData = {
-          restaurantName: "Receipt Scan Failed",
+          restaurantName: "OCR Processing Failed",
           items: [{ name: "Please try again", price: 0, quantity: 1 }],
           subtotal: 0,
           tax: 0,
           total: 0,
           date: new Date().toISOString(),
-          rawText: "OCR processing failed. Please try taking a clearer photo.",
+          rawText: `OCR processing failed: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }. Please try taking a clearer photo.`,
         };
         onProcessingComplete(fallbackData);
       }
