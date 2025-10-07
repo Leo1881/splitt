@@ -21,6 +21,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   const [isCapturing, setIsCapturing] = useState(false);
   const [mode, setMode] = useState<"camera" | "gallery" | "qr">("camera");
   const [showCaptureOptions, setShowCaptureOptions] = useState(false);
+  const [lastQRScan, setLastQRScan] = useState<number>(0);
   const cameraRef = useRef<CameraView>(null);
 
   if (!permission) {
@@ -104,6 +105,15 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   };
 
   const handleQRCodeScanned = ({ data }: { data: string }) => {
+    const now = Date.now();
+
+    // Debounce QR scans - only process if 2 seconds have passed since last scan
+    if (now - lastQRScan < 2000) {
+      console.log("QR Code scan ignored (debounced)");
+      return;
+    }
+
+    setLastQRScan(now);
     console.log("QR Code detected:", data);
 
     // Process QR data based on content type
@@ -140,14 +150,26 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   };
 
   const processQRReceipt = (data: string) => {
-    // For now, we'll treat QR data as a "photo" and let the OCR system handle it
-    // In the future, this could be enhanced to parse QR data directly
     console.log("Processing QR receipt data:", data);
 
-    // Create a mock image URI for QR data
-    const qrDataUri = `data:text/plain;base64,${Buffer.from(data).toString(
-      "base64"
-    )}`;
+    // For QR codes, we'll create a mock receipt data structure
+    // instead of trying to process it as an image
+    const mockReceiptData = {
+      restaurantName: "QR Receipt",
+      items: [{ name: "QR Code Item", price: 0, quantity: 1 }],
+      subtotal: 0,
+      tax: 0,
+      total: 0,
+      date: new Date().toISOString(),
+      rawText: data,
+    };
+
+    // Navigate directly to the receipt screen with QR data
+    // This bypasses the image processing entirely
+    console.log("QR data processed:", mockReceiptData);
+
+    // For now, we'll still use the photo flow but with a special marker
+    const qrDataUri = `qr-data:${data}`;
     onPhotoTaken(qrDataUri);
   };
 

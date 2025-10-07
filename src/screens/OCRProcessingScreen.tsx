@@ -34,6 +34,30 @@ export const OCRProcessingScreen: React.FC<OCRProcessingScreenProps> = ({
   useEffect(() => {
     const processReceipt = async () => {
       try {
+        // Check if this is QR data instead of an image
+        if (imageUri.startsWith("qr-data:")) {
+          const qrData = imageUri.replace("qr-data:", "");
+          console.log("Processing QR data:", qrData);
+
+          // Create mock receipt data for QR codes
+          const extractedData = {
+            restaurantName: "QR Receipt",
+            items: [{ name: "QR Code Item", price: 0, quantity: 1 }],
+            subtotal: 0,
+            tax: 0,
+            total: 0,
+            date: new Date().toISOString(),
+            rawText: qrData,
+          };
+
+          setProcessingStep(4);
+          setProgress(100);
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
+          onProcessingComplete(extractedData);
+          return;
+        }
+
         // Step 1: Analyzing receipt image
         setProcessingStep(0);
         setProgress(20);
