@@ -20,6 +20,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   const [facing, setFacing] = useState<CameraType>("back");
   const [isCapturing, setIsCapturing] = useState(false);
   const [mode, setMode] = useState<"camera" | "gallery" | "qr">("camera");
+  const [showCaptureOptions, setShowCaptureOptions] = useState(false);
   const cameraRef = useRef<CameraView>(null);
 
   if (!permission) {
@@ -152,6 +153,11 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
 
   const selectMode = (selectedMode: "camera" | "gallery" | "qr") => {
     setMode(selectedMode);
+    setShowCaptureOptions(false); // Hide FAB after selection
+  };
+
+  const toggleCaptureOptions = () => {
+    setShowCaptureOptions(!showCaptureOptions);
   };
 
   return (
@@ -207,68 +213,86 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
             <View style={[styles.corner, styles.bottomRight]} />
           </View>
         )}
+
+        {/* FAB Overlay - appears when capture options are shown */}
+        {showCaptureOptions && (
+          <View style={styles.fabOverlay}>
+            <View style={styles.fabContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.fabButton,
+                  mode === "camera" && styles.fabButtonActive,
+                ]}
+                onPress={() => selectMode("camera")}
+              >
+                <MaterialIcons name="camera-alt" size={24} color="white" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.fabButton,
+                  mode === "gallery" && styles.fabButtonActive,
+                ]}
+                onPress={() => selectMode("gallery")}
+              >
+                <MaterialIcons name="photo-library" size={24} color="white" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.fabButton,
+                  mode === "qr" && styles.fabButtonActive,
+                ]}
+                onPress={() => selectMode("qr")}
+              >
+                <MaterialIcons name="qr-code-scanner" size={24} color="white" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </View>
 
       <View style={styles.controls}>
         <View style={styles.leftControl}>
-          <View style={styles.modeButtonsContainer}>
-            <TouchableOpacity
-              style={[
-                styles.modeButton,
-                mode === "camera" && styles.activeModeButton,
-              ]}
-              onPress={() => selectMode("camera")}
-            >
-              <MaterialIcons name="camera-alt" size={20} color="white" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.modeButton,
-                mode === "gallery" && styles.activeModeButton,
-              ]}
-              onPress={() => selectMode("gallery")}
-            >
-              <MaterialIcons name="photo-library" size={20} color="white" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.modeButton,
-                mode === "qr" && styles.activeModeButton,
-              ]}
-              onPress={() => selectMode("qr")}
-            >
-              <MaterialIcons name="qr-code-scanner" size={20} color="white" />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.captureButton}
+            onPress={toggleCaptureOptions}
+          >
+            <MaterialIcons name="cloud-upload" size={24} color="white" />
+            <Text style={styles.captureText}>Upload</Text>
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          style={[styles.captureButton, isCapturing && styles.capturingButton]}
-          onPress={
-            mode === "gallery"
-              ? pickImageFromGallery
-              : mode === "qr"
-              ? undefined
-              : takePicture
-          }
-          disabled={isCapturing || mode === "qr"}
-        >
-          <MaterialIcons
-            name={
-              isCapturing
-                ? "hourglass-empty"
+        <View style={styles.centerControl}>
+          <TouchableOpacity
+            style={[
+              styles.mainCaptureButton,
+              isCapturing && styles.capturingButton,
+            ]}
+            onPress={
+              mode === "gallery"
+                ? pickImageFromGallery
                 : mode === "qr"
-                ? "qr-code-scanner"
-                : mode === "gallery"
-                ? "photo-library"
-                : "camera-alt"
+                ? undefined
+                : takePicture
             }
-            size={32}
-            color="white"
-          />
-        </TouchableOpacity>
+            disabled={isCapturing || mode === "qr"}
+          >
+            <MaterialIcons
+              name={
+                isCapturing
+                  ? "hourglass-empty"
+                  : mode === "qr"
+                  ? "qr-code-scanner"
+                  : mode === "gallery"
+                  ? "photo-library"
+                  : "camera-alt"
+              }
+              size={32}
+              color="white"
+            />
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.rightControl}>
           {mode === "camera" && (
@@ -348,11 +372,11 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderRightWidth: 0,
     borderBottomWidth: 0,
-    top: "30%",
+    top: "20%",
     left: "20%",
   },
   topRight: {
-    top: "30%",
+    top: "20%",
     right: "20%",
     left: "auto",
     borderLeftWidth: 0,
@@ -375,15 +399,18 @@ const styles = StyleSheet.create({
   },
   controls: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: theme.spacing.xl,
-    paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.xs,
+    paddingTop: 4,
   },
   leftControl: {
     flex: 1,
     alignItems: "flex-start",
+  },
+  centerControl: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   rightControl: {
     flex: 1,
@@ -472,7 +499,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    width: 100,
+    width: 110,
   },
   galleryPlaceholder: {
     flex: 1,
@@ -487,6 +514,53 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   captureButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 8,
+    width: 110,
+  },
+  captureText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  fabOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    paddingBottom: 30,
+  },
+  fabContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 20,
+  },
+  fabButton: {
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    borderRadius: 30,
+    width: 60,
+    height: 60,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  fabButtonActive: {
+    backgroundColor: theme.colors.primary,
+  },
+  mainCaptureButton: {
     backgroundColor: theme.colors.primary,
     borderRadius: 40,
     width: 80,
@@ -518,7 +592,5 @@ const styles = StyleSheet.create({
   backContainer: {
     padding: theme.spacing.lg,
   },
-  backButton: {
-    marginTop: theme.spacing.sm,
-  },
+  backButton: {},
 });
