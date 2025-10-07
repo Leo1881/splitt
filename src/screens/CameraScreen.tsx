@@ -19,7 +19,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>("back");
   const [isCapturing, setIsCapturing] = useState(false);
-  const [showCamera, setShowCamera] = useState(true);
+  const [mode, setMode] = useState<"camera" | "gallery" | "qr">("camera");
   const cameraRef = useRef<CameraView>(null);
 
   if (!permission) {
@@ -102,24 +102,88 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
     }
   };
 
+  const handleQRCodeScanned = ({ data }: { data: string }) => {
+    console.log("QR Code detected:", data);
+
+    // Process QR data based on content type
+    if (data.startsWith("http")) {
+      // URL - could be receipt link
+      Alert.alert(
+        "QR Code Detected",
+        `Receipt URL: ${data}\n\nWould you like to process this receipt?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Process", onPress: () => processQRReceipt(data) },
+        ]
+      );
+    } else if (data.startsWith("{")) {
+      // JSON data - parse directly
+      try {
+        const receiptData = JSON.parse(data);
+        Alert.alert("QR Code Detected", "Receipt data found! Processing...");
+        processQRReceipt(data);
+      } catch (error) {
+        Alert.alert("Error", "Invalid QR code data format");
+      }
+    } else {
+      // Plain text - could be receipt info
+      Alert.alert(
+        "QR Code Detected",
+        `Text: ${data}\n\nWould you like to process this as receipt data?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Process", onPress: () => processQRReceipt(data) },
+        ]
+      );
+    }
+  };
+
+  const processQRReceipt = (data: string) => {
+    // For now, we'll treat QR data as a "photo" and let the OCR system handle it
+    // In the future, this could be enhanced to parse QR data directly
+    console.log("Processing QR receipt data:", data);
+
+    // Create a mock image URI for QR data
+    const qrDataUri = `data:text/plain;base64,${Buffer.from(data).toString(
+      "base64"
+    )}`;
+    onPhotoTaken(qrDataUri);
+  };
+
+  const selectMode = (selectedMode: "camera" | "gallery" | "qr") => {
+    setMode(selectedMode);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Scan Receipt</Text>
+        <Text style={styles.title}>
+          {mode === "qr" ? "Scan QR Code" : "Scan Receipt"}
+        </Text>
         <Text style={styles.subtitle}>
-          {showCamera
+          {mode === "qr"
+            ? "Point your camera at a QR code to scan receipt data"
+            : mode === "camera"
             ? "Position the receipt within the frame and tap to capture"
             : "Choose a receipt photo from your gallery"}
         </Text>
       </View>
 
       <View style={styles.cameraContainer}>
-        {showCamera ? (
+        {mode !== "gallery" ? (
           <CameraView
             ref={cameraRef}
             style={styles.camera}
             facing={facing}
             mode="picture"
+            barcodeScannerSettings={
+              mode === "qr"
+                ? {
+                    barcodeTypes: ["qr", "pdf417"],
+                  }
+                : undefined
+            }
+            onBarcodeScanned={mode === "qr" ? handleQRCodeScanned : undefined}
           />
         ) : (
           <TouchableOpacity
@@ -135,7 +199,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
           </TouchableOpacity>
         )}
 
-        {showCamera && (
+        {mode !== "gallery" && (
           <View style={styles.cameraOverlay}>
             <View style={styles.corner} />
             <View style={[styles.corner, styles.topRight]} />
@@ -147,39 +211,59 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
 
       <View style={styles.controls}>
         <View style={styles.leftControl}>
-          <TouchableOpacity
-            style={styles.toggleButton}
-            onPress={() => {
-              if (showCamera) {
-                setShowCamera(false);
-              } else {
-                setShowCamera(true);
-              }
-            }}
-          >
-            <MaterialIcons
-              name={showCamera ? "photo-library" : "camera-alt"}
-              size={24}
-              color="white"
-            />
-            <Text style={styles.toggleText}>
-              {showCamera ? "Gallery" : "Camera"}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.modeButtonsContainer}>
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                mode === "camera" && styles.activeModeButton,
+              ]}
+              onPress={() => selectMode("camera")}
+            >
+              <MaterialIcons name="camera-alt" size={20} color="white" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                mode === "gallery" && styles.activeModeButton,
+              ]}
+              onPress={() => selectMode("gallery")}
+            >
+              <MaterialIcons name="photo-library" size={20} color="white" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                mode === "qr" && styles.activeModeButton,
+              ]}
+              onPress={() => selectMode("qr")}
+            >
+              <MaterialIcons name="qr-code-scanner" size={20} color="white" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <TouchableOpacity
           style={[styles.captureButton, isCapturing && styles.capturingButton]}
-          onPress={showCamera ? takePicture : pickImageFromGallery}
-          disabled={isCapturing}
+          onPress={
+            mode === "gallery"
+              ? pickImageFromGallery
+              : mode === "qr"
+              ? undefined
+              : takePicture
+          }
+          disabled={isCapturing || mode === "qr"}
         >
           <MaterialIcons
             name={
               isCapturing
                 ? "hourglass-empty"
-                : showCamera
-                ? "camera-alt"
-                : "photo-library"
+                : mode === "qr"
+                ? "qr-code-scanner"
+                : mode === "gallery"
+                ? "photo-library"
+                : "camera-alt"
             }
             size={32}
             color="white"
@@ -187,7 +271,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
         </TouchableOpacity>
 
         <View style={styles.rightControl}>
-          {showCamera && (
+          {mode === "camera" && (
             <TouchableOpacity
               style={styles.flipButton}
               onPress={toggleCameraFacing}
@@ -314,6 +398,59 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     width: 100,
+  },
+  modeButtonsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  modeButton: {
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    borderRadius: 20,
+    paddingVertical: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 40,
+    height: 40,
+  },
+  activeModeButton: {
+    backgroundColor: "rgba(0, 109, 119, 0.8)",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  modeOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  activeModeOption: {
+    backgroundColor: "rgba(0, 109, 119, 0.8)",
+  },
+  collapseButton: {
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    borderRadius: 12,
+    width: 28,
+    height: 28,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modeText: {
+    color: "white",
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  modeOptionText: {
+    color: "white",
+    marginLeft: 6,
+    fontSize: 12,
+    fontWeight: "500",
   },
   toggleText: {
     color: "white",

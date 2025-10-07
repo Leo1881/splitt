@@ -5,11 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Button } from "../components/Button";
 import { theme } from "../constants/theme";
+// import * as Clipboard from "expo-clipboard";
 
 interface OCRDataScreenProps {
   extractedData: any;
@@ -24,6 +26,15 @@ export const OCRDataScreen: React.FC<OCRDataScreenProps> = ({
 }) => {
   const handleContinue = () => {
     onContinue();
+  };
+
+  const handleCopyRawText = async () => {
+    try {
+      // await Clipboard.setStringAsync(extractedData?.rawText || "No raw text available");
+      Alert.alert("Copy Feature", "Copy functionality temporarily disabled");
+    } catch (error) {
+      Alert.alert("Error", "Failed to copy text");
+    }
   };
 
   return (
@@ -94,7 +105,21 @@ export const OCRDataScreen: React.FC<OCRDataScreenProps> = ({
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Raw OCR Text</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Raw OCR Text</Text>
+            <TouchableOpacity
+              onPress={handleCopyRawText}
+              style={styles.copyButton}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons
+                name="content-copy"
+                size={20}
+                color={theme.colors.primary}
+              />
+              <Text style={styles.copyButtonText}>Copy</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.rawTextCard}>
             <Text style={styles.rawText}>
               {extractedData?.rawText || "No raw text available"}
@@ -151,10 +176,32 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: theme.spacing.xl,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: theme.spacing.md,
+  },
   sectionTitle: {
     ...theme.typography.h3,
     color: theme.colors.text,
-    marginBottom: theme.spacing.md,
+    flex: 1,
+  },
+  copyButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: theme.colors.backgroundSecondary,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+  },
+  copyButtonText: {
+    ...theme.typography.caption,
+    color: theme.colors.primary,
+    marginLeft: theme.spacing.xs,
+    fontWeight: "600",
   },
   infoCard: {
     backgroundColor: theme.colors.backgroundSecondary,

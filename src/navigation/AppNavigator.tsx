@@ -75,8 +75,18 @@ export const AppNavigator: React.FC = () => {
   };
 
   const handleReceiptContinue = (receiptItems: ReceiptItem[]) => {
-    setItems(receiptItems);
-    setSubtotal(receiptItems.reduce((sum, item) => sum + item.price, 0));
+    // Use OCR data if available, otherwise use the passed items
+    const itemsToUse =
+      extractedData?.items?.length > 0
+        ? extractedData.items.map((item: any, index: number) => ({
+            id: `ocr-${index}`,
+            name: item.name,
+            price: item.price,
+          }))
+        : receiptItems;
+
+    setItems(itemsToUse);
+    setSubtotal(itemsToUse.reduce((sum, item) => sum + item.price, 0));
     setCurrentScreen("ItemAssignment");
   };
 
@@ -150,7 +160,7 @@ export const AppNavigator: React.FC = () => {
         return (
           <MockReceiptScreen
             currency={selectedCurrency}
-            restaurantName={restaurantName}
+            restaurantName={extractedData?.restaurantName || restaurantName}
             onContinue={handleReceiptContinue}
             onBack={handleReceiptBack}
             onViewOCRData={() => setCurrentScreen("OCRData")}
