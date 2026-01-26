@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useMemo, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,25 +13,8 @@ import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { theme } from "../constants/theme";
 import { shareBillPDF, BillData } from "../utils/pdfGenerator";
-
-interface Payee {
-  id: string;
-  name: string;
-}
-
-interface ReceiptItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
-interface ItemAssignment {
-  itemId: string;
-  payees: Payee[];
-  isSplit: boolean;
-  quantities?: { [payeeId: string]: number };
-}
+import { Payee, ReceiptItem, ItemAssignment } from "../types";
+import { captureException } from "../utils/sentry";
 
 interface ReviewScreenProps {
   items: ReceiptItem[];
@@ -58,8 +42,8 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
   onShare,
   onStartOver,
 }) => {
-  const calculatePayeeTotals = () => {
-    const payeeTotals: {
+  const payeeTotals = useMemo(() => {
+    const totals: {
       [key: string]: {
         name: string;
         subtotal: number;
@@ -75,7 +59,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
 
     // Initialize payee totals
     payees.forEach((payee) => {
-      payeeTotals[payee.id] = {
+      totals[payee.id] = {
         name: payee.name,
         subtotal: 0,
         tip: 0,
@@ -96,8 +80,8 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
           if (quantity > 0) {
             const pricePerUnit = item.price / item.quantity;
             const amount = quantity * pricePerUnit;
-            payeeTotals[payee.id].subtotal += amount;
-            payeeTotals[payee.id].items.push({
+            totals[payee.id].subtotal += amount;
+            totals[payee.id].items.push({
               name: item.quantity > 1 ? `${item.name} x${quantity}` : item.name,
               quantity,
               amount,
@@ -108,8 +92,8 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
         // Equal split
         const pricePerPerson = item.price / assignment.payees.length;
         assignment.payees.forEach((payee) => {
-          payeeTotals[payee.id].subtotal += pricePerPerson;
-          payeeTotals[payee.id].items.push({
+          totals[payee.id].subtotal += pricePerPerson;
+          totals[payee.id].items.push({
             name:
               item.quantity > 1 ? `${item.name} x${item.quantity}` : item.name,
             quantity: 1,
@@ -119,8 +103,8 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
       } else if (assignment.payees.length > 0) {
         // Single assignment
         const payee = assignment.payees[0];
-        payeeTotals[payee.id].subtotal += item.price;
-        payeeTotals[payee.id].items.push({
+        totals[payee.id].subtotal += item.price;
+        totals[payee.id].items.push({
           name:
             item.quantity > 1 ? `${item.name} x${item.quantity}` : item.name,
           quantity: item.quantity,
@@ -130,18 +114,60 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
     });
 
     // Calculate tip per person
-    const tipPerPerson = tipAmount / payees.length;
-    Object.keys(payeeTotals).forEach((payeeId) => {
-      payeeTotals[payeeId].tip = tipPerPerson;
-      payeeTotals[payeeId].total =
-        payeeTotals[payeeId].subtotal + payeeTotals[payeeId].tip;
+    const tipPerPerson = payees.length > 0 ? tipAmount / payees.length : 0;
+    Object.keys(totals).forEach((payeeId) => {
+      totals[payeeId].tip = tipPerPerson;
+      totals[payeeId].total = totals[payeeId].subtotal + totals[payeeId].tip;
     });
 
-    return payeeTotals;
-  };
+    return totals;
+  }, [items, assignments, payees, tipAmount]);
 
-  const payeeTotals = calculatePayeeTotals();
   const total = subtotal + tipAmount;
+
+  const handleSharePDF = useCallback(async () => {
+    try {
+      const tipPercentage =
+        subtotal > 0 ? Math.round((tipAmount / subtotal) * 100) : 0;
+
+      const billData: BillData = {
+        restaurantName: restaurantName,
+        currency: currency,
+        subtotal: subtotal,
+        tipAmount: tipAmount,
+        tipPercentage: tipPercentage,
+        total: total,
+        payees: payees,
+        items: items,
+        assignments: assignments,
+      };
+
+      await shareBillPDF(billData);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      captureException(
+        error instanceof Error ? error : new Error(errorMessage),
+        { context: "handleSharePDF" }
+      );
+      Alert.alert(
+        "Share Failed",
+        "Failed to generate PDF. Please try again or use the share button."
+      );
+      // Fallback to original onShare if PDF fails
+      onShare();
+    }
+  }, [
+    subtotal,
+    tipAmount,
+    total,
+    restaurantName,
+    currency,
+    payees,
+    items,
+    assignments,
+    onShare,
+  ]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -160,15 +186,24 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
           <Text style={styles.summaryTitle}>Total Bill</Text>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal</Text>
-            <Text style={styles.summaryValue}>R{subtotal.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>
+              {currency.symbol}
+              {subtotal.toFixed(2)}
+            </Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Tip</Text>
-            <Text style={styles.summaryValue}>R{tipAmount.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>
+              {currency.symbol}
+              {tipAmount.toFixed(2)}
+            </Text>
           </View>
           <View style={[styles.summaryRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>R{total.toFixed(2)}</Text>
+            <Text style={styles.totalValue}>
+              {currency.symbol}
+              {total.toFixed(2)}
+            </Text>
           </View>
         </Card>
 
@@ -176,16 +211,35 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
           <Text style={styles.payeesTitle}>What Each Person Owes</Text>
           {Object.values(payeeTotals).map((payee, index) => (
             <Card key={index} style={styles.payeeCard}>
-              <View style={styles.payeeHeader}>
+              <View
+                style={styles.payeeHeader}
+                accessible={true}
+                accessibilityLabel={`${payee.name} owes ${currency.symbol}${payee.total.toFixed(2)}`}
+              >
                 <View style={styles.payeeInfo}>
-                  <View style={styles.payeeAvatar}>
+                  <View
+                    style={styles.payeeAvatar}
+                    accessibilityLabel={`${payee.name} avatar`}
+                  >
                     <Text style={styles.payeeInitial}>
                       {payee.name.charAt(0).toUpperCase()}
                     </Text>
                   </View>
-                  <Text style={styles.payeeName}>{payee.name}</Text>
+                  <Text
+                    style={styles.payeeName}
+                    accessibilityRole="header"
+                    accessibilityLabel={payee.name}
+                  >
+                    {payee.name}
+                  </Text>
                 </View>
-                <Text style={styles.payeeTotal}>R{payee.total.toFixed(2)}</Text>
+                <Text
+                  style={styles.payeeTotal}
+                  accessibilityLabel={`Total: ${currency.symbol}${payee.total.toFixed(2)}`}
+                >
+                  {currency.symbol}
+                  {payee.total.toFixed(2)}
+                </Text>
               </View>
 
               <View style={styles.payeeItems}>
@@ -193,7 +247,8 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
                   <View key={itemIndex} style={styles.itemRow}>
                     <Text style={styles.itemName}>{item.name}</Text>
                     <Text style={styles.itemAmount}>
-                      R{item.amount.toFixed(2)}
+                      {currency.symbol}
+                      {item.amount.toFixed(2)}
                     </Text>
                   </View>
                 ))}
@@ -203,13 +258,15 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Items</Text>
                   <Text style={styles.breakdownValue}>
-                    R{payee.subtotal.toFixed(2)}
+                    {currency.symbol}
+                    {payee.subtotal.toFixed(2)}
                   </Text>
                 </View>
                 <View style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>Tip</Text>
                   <Text style={styles.breakdownValue}>
-                    R{payee.tip.toFixed(2)}
+                    {currency.symbol}
+                    {payee.tip.toFixed(2)}
                   </Text>
                 </View>
               </View>
@@ -220,31 +277,7 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
         <View style={styles.actionsSection}>
           <Button
             title="Share Breakdown"
-            onPress={async () => {
-              try {
-                const payeeTotals = calculatePayeeTotals();
-                const total = subtotal + tipAmount;
-                const tipPercentage = Math.round((tipAmount / subtotal) * 100);
-
-                const billData: BillData = {
-                  restaurantName: restaurantName,
-                  currency: currency,
-                  subtotal: subtotal,
-                  tipAmount: tipAmount,
-                  tipPercentage: tipPercentage,
-                  total: total,
-                  payees: payees, // Pass the original payees with id field
-                  items: items,
-                  assignments: assignments,
-                };
-
-                await shareBillPDF(billData);
-              } catch (error) {
-                console.error("Share failed:", error);
-                // Fallback to original onShare if PDF fails
-                onShare();
-              }
-            }}
+            onPress={handleSharePDF}
             variant="primary"
             size="large"
             style={styles.shareButton}
@@ -410,54 +443,6 @@ const styles = StyleSheet.create({
     ...theme.typography.caption,
     color: theme.colors.text,
     fontWeight: "600",
-  },
-  itemsSection: {
-    marginBottom: theme.spacing.xl,
-  },
-  itemsTitle: {
-    ...theme.typography.h3,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.md,
-  },
-  itemCard: {
-    marginBottom: theme.spacing.sm,
-  },
-  itemHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: theme.spacing.sm,
-  },
-  itemName: {
-    ...theme.typography.body,
-    color: theme.colors.text,
-    flex: 1,
-  },
-  itemPrice: {
-    ...theme.typography.body,
-    color: theme.colors.primary,
-    fontWeight: "600",
-  },
-  itemAssignment: {
-    marginTop: theme.spacing.sm,
-  },
-  splitAssignment: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  splitText: {
-    ...theme.typography.caption,
-    color: theme.colors.textSecondary,
-    marginLeft: theme.spacing.xs,
-  },
-  singleAssignment: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  singleText: {
-    ...theme.typography.caption,
-    color: theme.colors.textSecondary,
-    marginLeft: theme.spacing.xs,
   },
   actionsSection: {
     marginTop: "auto",

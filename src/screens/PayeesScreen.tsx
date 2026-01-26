@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -19,11 +19,12 @@ import {
   DEFAULT_CURRENCY,
   Currency,
 } from "../constants/currencies";
-
-interface Payee {
-  id: string;
-  name: string;
-}
+import { Payee } from "../types";
+import {
+  validateAndParse,
+  payeeSchema,
+  restaurantNameSchema,
+} from "../utils/validation";
 
 interface PayeesScreenProps {
   onContinue: (
@@ -38,46 +39,73 @@ export const PayeesScreen: React.FC<PayeesScreenProps> = ({
   onContinue,
   initialPayees = [],
 }) => {
-  const [payees, setPayees] = useState<Payee[]>(initialPayees);
+  const [payees, setPayees] = useState<Payee[]>(initialPayees || []);
   const [newPayeeName, setNewPayeeName] = useState("");
   const [selectedCurrency, setSelectedCurrency] =
     useState<Currency>(DEFAULT_CURRENCY);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [restaurantName, setRestaurantName] = useState("");
 
-  const addPayee = () => {
-    if (!newPayeeName.trim()) {
-      Alert.alert("Error", "Please enter a name");
+  const addPayee = useCallback(() => {
+    const trimmedName = newPayeeName.trim();
+    const validation = validateAndParse(
+      payeeSchema,
+      { id: Date.now().toString(), name: trimmedName }
+    );
+
+    if (!validation.success) {
+      Alert.alert("Invalid Name", validation.error);
       return;
     }
 
-    const newPayee: Payee = {
-      id: Date.now().toString(),
-      name: newPayeeName.trim(),
-    };
+    // Check for duplicate names
+    const isDuplicate = (payees || []).some(
+      (p) => p.name.toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (isDuplicate) {
+      Alert.alert("Duplicate Name", "This person is already added");
+      return;
+    }
 
-    setPayees([...payees, newPayee]);
+    setPayees([...(payees || []), validation.data]);
     setNewPayeeName("");
-  };
+  }, [newPayeeName, payees]);
 
-  const removePayee = (id: string) => {
-    setPayees(payees.filter((payee) => payee.id !== id));
-  };
+  const removePayee = useCallback(
+    (id: string) => {
+      setPayees((payees || []).filter((payee) => payee.id !== id));
+    },
+    [payees]
+  );
 
-  const handleContinue = () => {
-    if (payees.length === 0) {
+  const handleContinue = useCallback(() => {
+    if (!payees || payees.length === 0) {
       Alert.alert(
-        "Error",
+        "Missing Information",
         "Please add at least one person to split the bill with"
       );
       return;
     }
-    if (!restaurantName.trim()) {
-      Alert.alert("Error", "Please enter the restaurant name");
+
+    const trimmedRestaurantName = restaurantName.trim();
+    const restaurantValidation = validateAndParse(
+      restaurantNameSchema,
+      trimmedRestaurantName
+    );
+
+    if (!restaurantValidation.success) {
+      Alert.alert("Invalid Restaurant Name", restaurantValidation.error);
       return;
     }
-    onContinue(payees, selectedCurrency, restaurantName.trim());
-  };
+
+    onContinue(payees, selectedCurrency, trimmedRestaurantName);
+  }, [payees, restaurantName, selectedCurrency, onContinue]);
+
+  const handleNameSubmit = useCallback(() => {
+    if (newPayeeName.trim()) {
+      addPayee();
+    }
+  }, [newPayeeName, addPayee]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -97,6 +125,10 @@ export const PayeesScreen: React.FC<PayeesScreenProps> = ({
             value={restaurantName}
             onChangeText={setRestaurantName}
             placeholderTextColor={theme.colors.textSecondary}
+            accessibilityLabel="Restaurant name input"
+            accessibilityHint="Enter the name of the restaurant"
+            maxLength={100}
+            returnKeyType="done"
           />
         </Card>
 
@@ -108,6 +140,11 @@ export const PayeesScreen: React.FC<PayeesScreenProps> = ({
             value={newPayeeName}
             onChangeText={setNewPayeeName}
             placeholderTextColor={theme.colors.textSecondary}
+            accessibilityLabel="Person name input"
+            accessibilityHint="Enter the name of a person splitting the bill"
+            maxLength={50}
+            returnKeyType="done"
+            onSubmitEditing={handleNameSubmit}
           />
           <Button
             title="Add Person"
@@ -115,13 +152,15 @@ export const PayeesScreen: React.FC<PayeesScreenProps> = ({
             variant="primary"
             size="medium"
             style={styles.addButton}
+            accessibilityLabel="Add person to bill split"
+            accessibilityHint="Adds the entered person to the list of people splitting the bill"
           />
         </Card>
 
-        {payees.length > 0 && (
+        {payees && payees.length > 0 && (
           <View style={styles.payeesList}>
             <Text style={styles.payeesTitle}>People ({payees.length})</Text>
-            {payees.map((payee) => (
+            {(payees || []).map((payee) => (
               <Card key={payee.id} style={styles.payeeCard}>
                 <View style={styles.payeeInfo}>
                   <View style={styles.payeeAvatar}>
@@ -136,6 +175,9 @@ export const PayeesScreen: React.FC<PayeesScreenProps> = ({
                 <TouchableOpacity
                   style={styles.removeButton}
                   onPress={() => removePayee(payee.id)}
+                  accessibilityLabel={`Remove ${payee.name}`}
+                  accessibilityRole="button"
+                  accessibilityHint="Removes this person from the bill split"
                 >
                   <Ionicons name="close" size={20} color={theme.colors.error} />
                 </TouchableOpacity>
@@ -149,6 +191,10 @@ export const PayeesScreen: React.FC<PayeesScreenProps> = ({
           <TouchableOpacity
             style={styles.currencySelector}
             onPress={() => setShowCurrencyPicker(!showCurrencyPicker)}
+            accessibilityLabel="Currency selector"
+            accessibilityRole="button"
+            accessibilityHint="Opens currency selection menu"
+            accessibilityState={{ expanded: showCurrencyPicker }}
           >
             <View style={styles.currencyInfo}>
               <Text style={styles.currencySymbol}>
@@ -172,7 +218,7 @@ export const PayeesScreen: React.FC<PayeesScreenProps> = ({
               showsVerticalScrollIndicator={true}
               nestedScrollEnabled={true}
             >
-              {CURRENCIES.map((currency) => (
+              {(CURRENCIES || []).map((currency) => (
                 <TouchableOpacity
                   key={currency.code}
                   style={[
@@ -184,6 +230,12 @@ export const PayeesScreen: React.FC<PayeesScreenProps> = ({
                     setSelectedCurrency(currency);
                     setShowCurrencyPicker(false);
                   }}
+                  accessibilityLabel={`${currency.name} (${currency.code})`}
+                  accessibilityRole="button"
+                  accessibilityState={{
+                    selected: selectedCurrency.code === currency.code,
+                  }}
+                  accessibilityHint="Selects this currency for the bill"
                 >
                   <Text style={styles.currencyOptionSymbol}>
                     {currency.symbol}
@@ -215,8 +267,14 @@ export const PayeesScreen: React.FC<PayeesScreenProps> = ({
             onPress={handleContinue}
             variant="primary"
             size="large"
-            disabled={payees.length === 0}
+            disabled={!payees || payees.length === 0}
             style={styles.continueButton}
+            accessibilityLabel="Continue to scan receipt"
+            accessibilityHint={
+              payees.length === 0
+                ? "Please add at least one person before continuing"
+                : "Proceeds to the receipt scanning screen"
+            }
           />
         </View>
       </ScrollView>
@@ -235,13 +293,13 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
   },
   title: {
     ...theme.typography.h1,
     color: theme.colors.text,
     textAlign: "center",
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
   },
   subtitle: {
     ...theme.typography.body,
@@ -249,7 +307,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   addPayeeCard: {
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
   },
   addPayeeTitle: {
     ...theme.typography.h3,
@@ -262,15 +320,12 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
     fontSize: theme.typography.body.fontSize,
     color: theme.colors.text,
   },
-  addButton: {
-    marginTop: theme.spacing.sm,
-  },
   payeesList: {
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
   },
   payeesTitle: {
     ...theme.typography.h3,
@@ -281,7 +336,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
   },
   payeeInfo: {
     flexDirection: "row",
@@ -320,7 +375,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.lg,
   },
   currencyCard: {
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
   },
   currencyTitle: {
     ...theme.typography.h3,
@@ -401,7 +456,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   restaurantCard: {
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
   },
   restaurantTitle: {
     ...theme.typography.h3,

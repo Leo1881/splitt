@@ -212,8 +212,8 @@ const generateHTML = (data: BillData): string => {
           <div class="summary-row total">
             <span>Total:</span>
             <span class="currency">${data.currency.symbol}${data.total.toFixed(
-    2
-  )}</span>
+              2
+            )}</span>
           </div>
         </div>
 
@@ -297,8 +297,8 @@ const generateHTML = (data: BillData): string => {
                     <div class="payee-subtotal">
                       <span>Subtotal:</span>
                       <span>${data.currency.symbol}${payeeSubtotal.toFixed(
-                2
-              )}</span>
+                        2
+                      )}</span>
                     </div>
                     <div class="payee-tip">
                       <span>Tip:</span>

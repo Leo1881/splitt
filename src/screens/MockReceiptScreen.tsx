@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -11,20 +11,15 @@ import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { theme } from "../constants/theme";
 import { Currency } from "../constants/currencies";
+import { ReceiptItem } from "../types";
 
-interface ReceiptItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
+const TAX_RATE = 0.08; // 8% tax
 
 interface MockReceiptScreenProps {
   currency: Currency;
   restaurantName: string;
   onContinue: (items: ReceiptItem[]) => void;
   onBack?: () => void;
-  onViewOCRData?: () => void;
 }
 
 // Mock receipt data for testing
@@ -42,15 +37,35 @@ export const MockReceiptScreen: React.FC<MockReceiptScreenProps> = ({
   restaurantName,
   onContinue,
   onBack,
-  onViewOCRData,
 }) => {
-  const subtotal = mockReceiptData.reduce((sum, item) => sum + item.price, 0);
-  const tax = subtotal * 0.08; // 8% tax
-  const total = subtotal + tax;
+  const { subtotal, tax, total, receiptDate } = useMemo(() => {
+    const calcSubtotal = mockReceiptData.reduce(
+      (sum, item) => sum + item.price,
+      0
+    );
+    const calcTax = calcSubtotal * TAX_RATE;
+    const calcTotal = calcSubtotal + calcTax;
+    const date = new Date();
+    const formattedDate = `${date.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    })} • ${date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    })}`;
 
-  const handleContinue = () => {
+    return {
+      subtotal: calcSubtotal,
+      tax: calcTax,
+      total: calcTotal,
+      receiptDate: formattedDate,
+    };
+  }, []);
+
+  const handleContinue = useCallback(() => {
     onContinue(mockReceiptData);
-  };
+  }, [onContinue]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -68,8 +83,19 @@ export const MockReceiptScreen: React.FC<MockReceiptScreenProps> = ({
         </View>
 
         <Card style={styles.receiptCard}>
-          <Text style={styles.receiptTitle}>🍕 {restaurantName}</Text>
-          <Text style={styles.receiptDate}>December 15, 2024 • 7:30 PM</Text>
+          <Text
+            style={styles.receiptTitle}
+            accessibilityRole="header"
+            accessibilityLabel={`Restaurant: ${restaurantName}`}
+          >
+            🍕 {restaurantName}
+          </Text>
+          <Text
+            style={styles.receiptDate}
+            accessibilityLabel={`Receipt date: ${receiptDate}`}
+          >
+            {receiptDate}
+          </Text>
 
           <View style={styles.itemsContainer}>
             {mockReceiptData.map((item) => (
@@ -98,7 +124,7 @@ export const MockReceiptScreen: React.FC<MockReceiptScreenProps> = ({
               </Text>
             </View>
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Tax (8%)</Text>
+              <Text style={styles.totalLabel}>Tax ({TAX_RATE * 100}%)</Text>
               <Text style={styles.totalValue}>
                 {currency.symbol}
                 {tax.toFixed(2)}
@@ -128,6 +154,8 @@ export const MockReceiptScreen: React.FC<MockReceiptScreenProps> = ({
                 onPress={onBack}
                 style={styles.backButton}
                 activeOpacity={0.7}
+                accessibilityLabel="Go back"
+                accessibilityRole="button"
               >
                 <Text style={styles.backButtonText}>‹</Text>
               </TouchableOpacity>
@@ -138,16 +166,9 @@ export const MockReceiptScreen: React.FC<MockReceiptScreenProps> = ({
               variant="primary"
               size="large"
               style={styles.continueButton}
+              accessibilityLabel="Continue to assign items"
+              accessibilityHint="Proceeds to assign items to people"
             />
-            {onViewOCRData && (
-              <Button
-                title="View OCR Data (Dev)"
-                onPress={onViewOCRData}
-                variant="outline"
-                size="small"
-                style={styles.devButton}
-              />
-            )}
           </View>
         </View>
       </ScrollView>
@@ -166,13 +187,13 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
   },
   title: {
     ...theme.typography.h1,
     color: theme.colors.text,
     textAlign: "center",
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
   },
   subtitle: {
     ...theme.typography.body,
@@ -180,7 +201,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   receiptCard: {
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
   },
   receiptTitle: {
     ...theme.typography.h2,
@@ -190,7 +211,7 @@ const styles = StyleSheet.create({
   receiptDate: {
     ...theme.typography.caption,
     color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
   },
   itemsContainer: {
     marginBottom: theme.spacing.md,
@@ -199,7 +220,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
@@ -239,8 +260,8 @@ const styles = StyleSheet.create({
   finalTotal: {
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
-    marginTop: theme.spacing.sm,
-    paddingTop: theme.spacing.sm,
+    marginTop: theme.spacing.xs,
+    paddingTop: theme.spacing.xs,
   },
   finalTotalLabel: {
     ...theme.typography.h3,
@@ -256,7 +277,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     padding: theme.spacing.md,
     borderRadius: theme.borderRadius.md,
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
   },
   noteText: {
     ...theme.typography.caption,
@@ -302,8 +323,5 @@ const styles = StyleSheet.create({
     paddingRight: 0,
     textAlign: "center",
     lineHeight: 28,
-  },
-  devButton: {
-    marginTop: theme.spacing.sm,
   },
 });

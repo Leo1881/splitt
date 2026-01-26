@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -15,35 +15,21 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { theme } from "../constants/theme";
-
-interface Payee {
-  id: string;
-  name: string;
-}
-
-interface ReceiptItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
-
-interface ItemAssignment {
-  itemId: string;
-  payees: Payee[];
-  isSplit: boolean;
-  quantities?: { [payeeId: string]: number };
-}
+import { Payee, ReceiptItem, ItemAssignment } from "../types";
+import { Currency } from "../constants/currencies";
+import { validateAndParse, receiptItemSchema } from "../utils/validation";
 
 interface ItemAssignmentScreenProps {
   items: ReceiptItem[];
   payees: Payee[];
+  currency: Currency;
   onContinue: (assignments: ItemAssignment[]) => void;
 }
 
 export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
   items,
   payees,
+  currency,
   onContinue,
 }) => {
   const [assignments, setAssignments] = useState<ItemAssignment[]>(
@@ -60,29 +46,41 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
     [payeeId: string]: number;
   }>({});
 
-  const getAssignment = (itemId: string) => {
-    return assignments.find((a) => a.itemId === itemId);
-  };
+  const getAssignment = useCallback(
+    (itemId: string) => {
+      return assignments.find((a) => a.itemId === itemId);
+    },
+    [assignments]
+  );
 
-  const assignToSinglePayee = (itemId: string, payee: Payee) => {
-    setAssignments(
-      assignments.map((assignment) =>
-        assignment.itemId === itemId
-          ? { itemId, payees: [payee], isSplit: false }
-          : assignment
-      )
-    );
-  };
+  const assignToSinglePayee = useCallback(
+    (itemId: string, payee: Payee) => {
+      setAssignments((prev) =>
+        prev.map((assignment) =>
+          assignment.itemId === itemId
+            ? { itemId, payees: [payee], isSplit: false }
+            : assignment
+        )
+      );
+    },
+    []
+  );
 
-  const openSplitModal = (item: ReceiptItem) => {
+  const openSplitModal = useCallback((item: ReceiptItem) => {
     setSelectedItem(item);
     setSelectedPayees([]);
     setPayeeQuantities({});
     setSplitModalVisible(true);
-  };
+  }, []);
 
-  const handleSplitAssignment = () => {
-    if (!selectedItem || selectedPayees.length < 2) return;
+  const handleSplitAssignment = useCallback(() => {
+    if (!selectedItem || selectedPayees.length < 2) {
+      Alert.alert(
+        "Invalid Selection",
+        "Please select at least 2 people to split this item."
+      );
+      return;
+    }
 
     // Only validate quantities for items with quantity > 1
     if (selectedItem.quantity > 1) {
@@ -93,20 +91,21 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
       if (totalAssigned !== selectedItem.quantity) {
         Alert.alert(
           "Invalid Quantities",
-          `Total assigned (${totalAssigned}) must equal item quantity (${selectedItem.quantity})`
+          `Total assigned (${totalAssigned}) must equal item quantity (${selectedItem.quantity}). Please adjust the quantities.`
         );
         return;
       }
     }
 
-    setAssignments(
-      assignments.map((assignment) =>
+    setAssignments((prev) =>
+      prev.map((assignment) =>
         assignment.itemId === selectedItem.id
           ? {
               itemId: selectedItem.id,
               payees: selectedPayees,
               isSplit: true,
-              quantities: payeeQuantities,
+              quantities:
+                selectedItem.quantity > 1 ? payeeQuantities : undefined,
             }
           : assignment
       )
@@ -115,71 +114,81 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
     setSelectedItem(null);
     setSelectedPayees([]);
     setPayeeQuantities({});
-  };
+  }, [selectedItem, selectedPayees, payeeQuantities]);
 
-  const togglePayeeSelection = (payee: Payee) => {
-    setSelectedPayees((prev) => {
-      const isSelected = prev.some((p) => p.id === payee.id);
-      if (isSelected) {
-        // Remove from selection and clear quantity
-        const newQuantities = { ...payeeQuantities };
-        delete newQuantities[payee.id];
-        setPayeeQuantities(newQuantities);
-        return prev.filter((p) => p.id !== payee.id);
-      } else {
-        // Add to selection and set quantity to 0
-        setPayeeQuantities((prev) => ({ ...prev, [payee.id]: 0 }));
-        return [...prev, payee];
-      }
-    });
-  };
-
-  const updatePayeeQuantity = (payeeId: string, quantity: number) => {
-    if (quantity < 0) return;
-    setPayeeQuantities((prev) => ({ ...prev, [payeeId]: quantity }));
-  };
-
-  const getAssignmentText = (assignment: ItemAssignment) => {
-    if (assignment.payees.length === 0) {
-      return "Select person";
-    } else if (assignment.isSplit) {
-      const item = items.find((i) => i.id === assignment.itemId);
-      if (!item) return "Split between multiple people";
-
-      if (assignment.quantities && item.quantity > 1) {
-        // Show individual quantities for multiple items
-        const assignments = assignment.payees.map((payee) => {
-          const quantity = assignment.quantities![payee.id] || 0;
-          return `${payee.name} (${quantity})`;
-        });
-        return assignments.join(", ");
-      } else {
-        // Fallback to equal split
-        const names = assignment.payees.map((p) => p.name).join(", ");
-        // For single items, just show names without price
-        if (item.quantity === 1) {
-          return names;
+  const togglePayeeSelection = useCallback(
+    (payee: Payee) => {
+      setSelectedPayees((prev) => {
+        const isSelected = prev.some((p) => p.id === payee.id);
+        if (isSelected) {
+          // Remove from selection and clear quantity
+          setPayeeQuantities((prevQty) => {
+            const newQuantities = { ...prevQty };
+            delete newQuantities[payee.id];
+            return newQuantities;
+          });
+          return prev.filter((p) => p.id !== payee.id);
         } else {
-          const pricePerPerson = item.price / assignment.payees.length;
-          return `Split between ${names} - R${pricePerPerson.toFixed(2)} each`;
+          // Add to selection and set quantity to 0
+          setPayeeQuantities((prev) => ({ ...prev, [payee.id]: 0 }));
+          return [...prev, payee];
         }
-      }
-    } else {
-      return assignment.payees[0].name;
-    }
-  };
+      });
+    },
+    []
+  );
 
-  const handleContinue = () => {
+  const updatePayeeQuantity = useCallback((payeeId: string, quantity: number) => {
+    if (quantity < 0) return;
+    const maxQuantity = selectedItem?.quantity || 1;
+    const clampedQuantity = Math.min(quantity, maxQuantity);
+    setPayeeQuantities((prev) => ({ ...prev, [payeeId]: clampedQuantity }));
+  }, [selectedItem]);
+
+  const getAssignmentText = useCallback(
+    (assignment: ItemAssignment) => {
+      if (assignment.payees.length === 0) {
+        return "Select person";
+      } else if (assignment.isSplit) {
+        const item = items.find((i) => i.id === assignment.itemId);
+        if (!item) return "Split between multiple people";
+
+        if (assignment.quantities && item.quantity > 1) {
+          // Show individual quantities for multiple items
+          const assignmentTexts = assignment.payees.map((payee) => {
+            const quantity = assignment.quantities![payee.id] || 0;
+            return `${payee.name} (${quantity})`;
+          });
+          return assignmentTexts.join(", ");
+        } else {
+          // Fallback to equal split
+          const names = assignment.payees.map((p) => p.name).join(", ");
+          // For single items, just show names without price
+          if (item.quantity === 1) {
+            return names;
+          } else {
+            const pricePerPerson = item.price / assignment.payees.length;
+            return `Split between ${names} - ${currency.symbol}${pricePerPerson.toFixed(2)} each`;
+          }
+        }
+      } else {
+        return assignment.payees[0].name;
+      }
+    },
+    [items, currency]
+  );
+
+  const handleContinue = useCallback(() => {
     const unassignedItems = assignments.filter((a) => a.payees.length === 0);
     if (unassignedItems.length > 0) {
       Alert.alert(
         "Incomplete Assignment",
-        "Please assign all items to people before continuing."
+        `Please assign all ${unassignedItems.length} unassigned item(s) to people before continuing.`
       );
       return;
     }
     onContinue(assignments);
-  };
+  }, [assignments, onContinue]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -207,7 +216,10 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
                       ? `${item.name} x${item.quantity}`
                       : item.name}
                   </Text>
-                  <Text style={styles.itemPrice}>R{item.price.toFixed(2)}</Text>
+                  <Text style={styles.itemPrice}>
+                    {currency.symbol}
+                    {item.price.toFixed(2)}
+                  </Text>
                 </View>
 
                 <View style={styles.assignmentRow}>
@@ -217,6 +229,9 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
                       setSelectedItem(item);
                       setSplitModalVisible(false);
                     }}
+                    accessibilityLabel={`Assign ${item.name} to a person`}
+                    accessibilityRole="button"
+                    accessibilityHint="Opens menu to assign this item to a person"
                   >
                     <Text style={styles.assignButtonText}>
                       {getAssignmentText(assignment!)}
@@ -231,6 +246,9 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
                   <TouchableOpacity
                     style={styles.splitButton}
                     onPress={() => openSplitModal(item)}
+                    accessibilityLabel={`Split ${item.name} between multiple people`}
+                    accessibilityRole="button"
+                    accessibilityHint="Opens menu to split this item between multiple people"
                   >
                     <Ionicons
                       name="people"
@@ -251,6 +269,8 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
             variant="primary"
             size="large"
             style={styles.continueButton}
+            accessibilityLabel="Continue to add tip"
+            accessibilityHint="Proceeds to the tip screen after all items are assigned"
           />
         </View>
       </ScrollView>
@@ -268,7 +288,7 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
               {selectedItem?.quantity && selectedItem.quantity > 1
                 ? `${selectedItem.name} x${selectedItem.quantity}`
                 : selectedItem?.name}
-              {" - R" + selectedItem?.price.toFixed(2)}
+              {` - ${currency.symbol}${selectedItem?.price.toFixed(2)}`}
             </Text>
             <Text style={styles.modalSubtitle}>Who ordered this item?</Text>
 
@@ -283,6 +303,8 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
                       setSelectedItem(null);
                     }
                   }}
+                  accessibilityLabel={`Assign item to ${payee.name}`}
+                  accessibilityRole="button"
                 >
                   <View style={styles.payeeInfo}>
                     <View style={styles.payeeAvatar}>
@@ -303,6 +325,7 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
                 variant="outline"
                 size="medium"
                 style={styles.cancelButton}
+                accessibilityLabel="Cancel item assignment"
               />
             </View>
           </View>
@@ -322,7 +345,7 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
               {selectedItem?.quantity && selectedItem.quantity > 1
                 ? `${selectedItem.name} x${selectedItem.quantity}`
                 : selectedItem?.name}
-              {" - R" + selectedItem?.price.toFixed(2)}
+              {` - ${currency.symbol}${selectedItem?.price.toFixed(2)}`}
             </Text>
             <Text style={styles.modalSubtitle}>Who's sharing this item?</Text>
 
@@ -345,6 +368,9 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
                           isSelected && styles.selectedPayee,
                         ]}
                         onPress={() => togglePayeeSelection(payee)}
+                        accessibilityLabel={`${isSelected ? "Deselect" : "Select"} ${payee.name} for split`}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: isSelected }}
                       >
                         <View style={styles.payeeInfo}>
                           <View style={styles.payeeAvatar}>
@@ -383,6 +409,8 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
                                     Math.max(0, quantity - 1)
                                   )
                                 }
+                                accessibilityLabel={`Decrease quantity for ${payee.name}`}
+                                accessibilityRole="button"
                               >
                                 <Ionicons
                                   name="remove-outline"
@@ -394,17 +422,21 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
                                 style={styles.quantityInput}
                                 value={quantity.toString()}
                                 onChangeText={(text) => {
-                                  const newQuantity = parseInt(text) || 1;
+                                  const newQuantity = parseInt(text) || 0;
                                   updatePayeeQuantity(payee.id, newQuantity);
                                 }}
                                 keyboardType="numeric"
                                 selectTextOnFocus
+                                accessibilityLabel={`Quantity for ${payee.name}`}
+                                accessibilityHint="Enter the quantity of this item for this person"
                               />
                               <TouchableOpacity
                                 style={styles.quantityButton}
                                 onPress={() =>
                                   updatePayeeQuantity(payee.id, quantity + 1)
                                 }
+                                accessibilityLabel={`Increase quantity for ${payee.name}`}
+                                accessibilityRole="button"
                               >
                                 <Ionicons
                                   name="add-outline"
@@ -432,6 +464,7 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
                 variant="outline"
                 size="medium"
                 style={styles.cancelButton}
+                accessibilityLabel="Cancel split assignment"
               />
               <Button
                 title={`Split Item (${selectedPayees.length})`}
@@ -440,6 +473,12 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
                 size="medium"
                 style={styles.splitConfirmButton}
                 disabled={selectedPayees.length < 2}
+                accessibilityLabel={`Split item between ${selectedPayees.length} people`}
+                accessibilityHint={
+                  selectedPayees.length < 2
+                    ? "Select at least 2 people to split this item"
+                    : "Confirms splitting this item between selected people"
+                }
               />
             </View>
           </View>

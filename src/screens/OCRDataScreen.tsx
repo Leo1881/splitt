@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import {
   View,
   Text,
@@ -9,12 +9,14 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import { Button } from "../components/Button";
 import { theme } from "../constants/theme";
-// import * as Clipboard from "expo-clipboard";
+import { ExtractedReceiptData } from "../types";
+import { captureException } from "../utils/sentry";
 
 interface OCRDataScreenProps {
-  extractedData: any;
+  extractedData: ExtractedReceiptData | null;
   onContinue: () => void;
   onBack?: () => void;
 }
@@ -24,18 +26,23 @@ export const OCRDataScreen: React.FC<OCRDataScreenProps> = ({
   onContinue,
   onBack,
 }) => {
-  const handleContinue = () => {
+  const handleContinue = useCallback(() => {
     onContinue();
-  };
+  }, [onContinue]);
 
-  const handleCopyRawText = async () => {
+  const handleCopyRawText = useCallback(async () => {
+    const textToCopy = extractedData?.rawText || "No raw text available";
     try {
-      // await Clipboard.setStringAsync(extractedData?.rawText || "No raw text available");
-      Alert.alert("Copy Feature", "Copy functionality temporarily disabled");
+      await Clipboard.setStringAsync(textToCopy);
+      Alert.alert("Copied", "Raw OCR text copied to clipboard");
     } catch (error) {
-      Alert.alert("Error", "Failed to copy text");
+      captureException(
+        error instanceof Error ? error : new Error("Clipboard error"),
+        { context: "handleCopyRawText" }
+      );
+      Alert.alert("Error", "Failed to copy text to clipboard");
     }
-  };
+  }, [extractedData?.rawText]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -69,7 +76,7 @@ export const OCRDataScreen: React.FC<OCRDataScreenProps> = ({
           <Text style={styles.sectionTitle}>
             Items Found ({extractedData?.items?.length || 0})
           </Text>
-          {extractedData?.items?.map((item: any, index: number) => (
+          {extractedData?.items?.map((item, index: number) => (
             <View key={index} style={styles.itemCard}>
               <View style={styles.itemInfo}>
                 <Text style={styles.itemName}>{item.name}</Text>
@@ -111,6 +118,9 @@ export const OCRDataScreen: React.FC<OCRDataScreenProps> = ({
               onPress={handleCopyRawText}
               style={styles.copyButton}
               activeOpacity={0.7}
+              accessibilityLabel="Copy raw OCR text"
+              accessibilityRole="button"
+              accessibilityHint="Copies the raw OCR text to clipboard"
             >
               <MaterialIcons
                 name="content-copy"
@@ -134,6 +144,8 @@ export const OCRDataScreen: React.FC<OCRDataScreenProps> = ({
             onPress={onBack}
             style={styles.backButton}
             activeOpacity={0.7}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
           >
             <Text style={styles.backButtonText}>‹</Text>
           </TouchableOpacity>
@@ -144,6 +156,8 @@ export const OCRDataScreen: React.FC<OCRDataScreenProps> = ({
           variant="primary"
           size="large"
           style={styles.continueButton}
+          accessibilityLabel="Continue to assign items"
+          accessibilityHint="Proceeds to the item assignment screen"
         />
       </View>
     </SafeAreaView>

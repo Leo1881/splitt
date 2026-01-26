@@ -31,7 +31,15 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
+
+# testing
+coverage
+.nyc_output
+
+# prettier
+.prettiercache
 
 # typescript
 *.tsbuildinfo

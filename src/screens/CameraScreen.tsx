@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
@@ -6,6 +6,9 @@ import * as ImagePicker from "expo-image-picker";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Button } from "../components/Button";
 import { theme } from "../constants/theme";
+import { captureException } from "../utils/sentry";
+
+const QR_SCAN_DEBOUNCE_MS = 2000;
 
 interface CameraScreenProps {
   onPhotoTaken: (photoUri: string) => void;
@@ -16,6 +19,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   onPhotoTaken,
   onBack,
 }) => {
+  // ALL HOOKS MUST BE CALLED FIRST - before any conditional returns
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>("back");
   const [isCapturing, setIsCapturing] = useState(false);
@@ -24,6 +28,142 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
   const [lastQRScan, setLastQRScan] = useState<number>(0);
   const cameraRef = useRef<CameraView>(null);
 
+  // All useCallback hooks must be called before any conditional returns
+  const toggleCameraFacing = useCallback(() => {
+    setFacing((current) => (current === "back" ? "front" : "back"));
+  }, []);
+
+  const takePicture = useCallback(async () => {
+    if (cameraRef.current && !isCapturing) {
+      try {
+        setIsCapturing(true);
+        const photo = await cameraRef.current.takePictureAsync({
+          quality: 0.8,
+          base64: false,
+        });
+
+        if (photo?.uri) {
+          onPhotoTaken(photo.uri);
+        } else {
+          Alert.alert("Error", "Failed to capture photo. Please try again.");
+        }
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        captureException(
+          error instanceof Error ? error : new Error(errorMessage),
+          { context: "takePicture" }
+        );
+        Alert.alert(
+          "Camera Error",
+          "Failed to take picture. Please check camera permissions and try again."
+        );
+      } finally {
+        setIsCapturing(false);
+      }
+    }
+  }, [isCapturing, onPhotoTaken]);
+
+  const pickImageFromGallery = useCallback(async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        onPhotoTaken(result.assets[0].uri);
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      captureException(
+        error instanceof Error ? error : new Error(errorMessage),
+        { context: "pickImageFromGallery" }
+      );
+      Alert.alert(
+        "Gallery Error",
+        "Failed to pick image from gallery. Please check permissions and try again."
+      );
+    }
+  }, [onPhotoTaken]);
+
+  const processQRReceipt = useCallback(
+    (data: string) => {
+      // For QR codes, we'll create a mock receipt data structure
+      // instead of trying to process it as an image
+      // For now, we'll still use the photo flow but with a special marker
+      const qrDataUri = `qr-data:${data}`;
+      onPhotoTaken(qrDataUri);
+    },
+    [onPhotoTaken]
+  );
+
+  const handleQRCodeScanned = useCallback(
+    ({ data }: { data: string }) => {
+      const now = Date.now();
+
+      // Debounce QR scans - only process if debounce time has passed since last scan
+      if (now - lastQRScan < QR_SCAN_DEBOUNCE_MS) {
+        return;
+      }
+
+      setLastQRScan(now);
+
+      // Process QR data based on content type
+      if (data.startsWith("http")) {
+        // URL - could be receipt link
+        Alert.alert(
+          "QR Code Detected",
+          `Receipt URL: ${data}\n\nWould you like to process this receipt?`,
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Process", onPress: () => processQRReceipt(data) },
+          ]
+        );
+      } else if (data.startsWith("{")) {
+        // JSON data - parse directly
+        try {
+          JSON.parse(data);
+          Alert.alert("QR Code Detected", "Receipt data found! Processing...");
+          processQRReceipt(data);
+        } catch (error) {
+          captureException(
+            error instanceof Error ? error : new Error("Invalid QR JSON"),
+            { context: "handleQRCodeScanned", qrData: data }
+          );
+          Alert.alert("Error", "Invalid QR code data format");
+        }
+      } else {
+        // Plain text - could be receipt info
+        Alert.alert(
+          "QR Code Detected",
+          `Text: ${data}\n\nWould you like to process this as receipt data?`,
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Process", onPress: () => processQRReceipt(data) },
+          ]
+        );
+      }
+    },
+    [lastQRScan, processQRReceipt]
+  );
+
+  const selectMode = useCallback(
+    (selectedMode: "camera" | "gallery" | "qr") => {
+      setMode(selectedMode);
+      setShowCaptureOptions(false); // Hide FAB after selection
+    },
+    []
+  );
+
+  const toggleCaptureOptions = useCallback(() => {
+    setShowCaptureOptions((prev) => !prev);
+  }, []);
+
+  // NOW we can do conditional returns AFTER all hooks are called
   if (!permission) {
     // Camera permissions are still loading
     return (
@@ -47,6 +187,8 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
             title="Grant Permission"
             onPress={requestPermission}
             style={styles.permissionButton}
+            accessibilityLabel="Grant camera permission"
+            accessibilityHint="Allows the app to access your camera to scan receipts"
           />
           {onBack && (
             <Button
@@ -54,133 +196,13 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
               onPress={onBack}
               variant="outline"
               style={styles.backButton}
+              accessibilityLabel="Go back to previous screen"
             />
           )}
         </View>
       </SafeAreaView>
     );
   }
-
-  const toggleCameraFacing = () => {
-    setFacing((current) => (current === "back" ? "front" : "back"));
-  };
-
-  const takePicture = async () => {
-    if (cameraRef.current && !isCapturing) {
-      try {
-        setIsCapturing(true);
-        const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.8,
-          base64: false,
-        });
-
-        if (photo?.uri) {
-          onPhotoTaken(photo.uri);
-        }
-      } catch (error) {
-        Alert.alert("Error", "Failed to take picture");
-        console.error("Camera error:", error);
-      } finally {
-        setIsCapturing(false);
-      }
-    }
-  };
-
-  const pickImageFromGallery = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        onPhotoTaken(result.assets[0].uri);
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to pick image from gallery");
-      console.error("Image picker error:", error);
-    }
-  };
-
-  const handleQRCodeScanned = ({ data }: { data: string }) => {
-    const now = Date.now();
-
-    // Debounce QR scans - only process if 2 seconds have passed since last scan
-    if (now - lastQRScan < 2000) {
-      console.log("QR Code scan ignored (debounced)");
-      return;
-    }
-
-    setLastQRScan(now);
-    console.log("QR Code detected:", data);
-
-    // Process QR data based on content type
-    if (data.startsWith("http")) {
-      // URL - could be receipt link
-      Alert.alert(
-        "QR Code Detected",
-        `Receipt URL: ${data}\n\nWould you like to process this receipt?`,
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Process", onPress: () => processQRReceipt(data) },
-        ]
-      );
-    } else if (data.startsWith("{")) {
-      // JSON data - parse directly
-      try {
-        const receiptData = JSON.parse(data);
-        Alert.alert("QR Code Detected", "Receipt data found! Processing...");
-        processQRReceipt(data);
-      } catch (error) {
-        Alert.alert("Error", "Invalid QR code data format");
-      }
-    } else {
-      // Plain text - could be receipt info
-      Alert.alert(
-        "QR Code Detected",
-        `Text: ${data}\n\nWould you like to process this as receipt data?`,
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Process", onPress: () => processQRReceipt(data) },
-        ]
-      );
-    }
-  };
-
-  const processQRReceipt = (data: string) => {
-    console.log("Processing QR receipt data:", data);
-
-    // For QR codes, we'll create a mock receipt data structure
-    // instead of trying to process it as an image
-    const mockReceiptData = {
-      restaurantName: "QR Receipt",
-      items: [{ name: "QR Code Item", price: 0, quantity: 1 }],
-      subtotal: 0,
-      tax: 0,
-      total: 0,
-      date: new Date().toISOString(),
-      rawText: data,
-    };
-
-    // Navigate directly to the receipt screen with QR data
-    // This bypasses the image processing entirely
-    console.log("QR data processed:", mockReceiptData);
-
-    // For now, we'll still use the photo flow but with a special marker
-    const qrDataUri = `qr-data:${data}`;
-    onPhotoTaken(qrDataUri);
-  };
-
-  const selectMode = (selectedMode: "camera" | "gallery" | "qr") => {
-    setMode(selectedMode);
-    setShowCaptureOptions(false); // Hide FAB after selection
-  };
-
-  const toggleCaptureOptions = () => {
-    setShowCaptureOptions(!showCaptureOptions);
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -192,8 +214,8 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
           {mode === "qr"
             ? "Point your camera at a QR code to scan receipt data"
             : mode === "camera"
-            ? "Position the receipt within the frame and tap to capture"
-            : "Choose a receipt photo from your gallery"}
+              ? "Position the receipt within the frame and tap to capture"
+              : "Choose a receipt photo from your gallery"}
         </Text>
       </View>
 
@@ -217,6 +239,9 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
           <TouchableOpacity
             style={styles.galleryPlaceholder}
             onPress={pickImageFromGallery}
+            accessibilityLabel="Select from gallery"
+            accessibilityRole="button"
+            accessibilityHint="Opens your photo gallery to select a receipt image"
           >
             <MaterialIcons
               name="photo-library"
@@ -246,6 +271,10 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
                   mode === "camera" && styles.fabButtonActive,
                 ]}
                 onPress={() => selectMode("camera")}
+                accessibilityLabel="Camera mode"
+                accessibilityRole="button"
+                accessibilityState={{ selected: mode === "camera" }}
+                accessibilityHint="Switch to camera mode to take a photo"
               >
                 <MaterialIcons name="camera-alt" size={24} color="white" />
               </TouchableOpacity>
@@ -256,6 +285,10 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
                   mode === "gallery" && styles.fabButtonActive,
                 ]}
                 onPress={() => selectMode("gallery")}
+                accessibilityLabel="Gallery mode"
+                accessibilityRole="button"
+                accessibilityState={{ selected: mode === "gallery" }}
+                accessibilityHint="Switch to gallery mode to select a photo"
               >
                 <MaterialIcons name="photo-library" size={24} color="white" />
               </TouchableOpacity>
@@ -266,6 +299,10 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
                   mode === "qr" && styles.fabButtonActive,
                 ]}
                 onPress={() => selectMode("qr")}
+                accessibilityLabel="QR code scanner mode"
+                accessibilityRole="button"
+                accessibilityState={{ selected: mode === "qr" }}
+                accessibilityHint="Switch to QR code scanner mode"
               >
                 <MaterialIcons name="qr-code-scanner" size={24} color="white" />
               </TouchableOpacity>
@@ -279,6 +316,9 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
           <TouchableOpacity
             style={styles.captureButton}
             onPress={toggleCaptureOptions}
+            accessibilityLabel="Upload options"
+            accessibilityRole="button"
+            accessibilityHint="Shows options to upload from camera, gallery, or QR code"
           >
             <MaterialIcons name="cloud-upload" size={24} color="white" />
             <Text style={styles.captureText}>Upload</Text>
@@ -295,20 +335,38 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
               mode === "gallery"
                 ? pickImageFromGallery
                 : mode === "qr"
-                ? undefined
-                : takePicture
+                  ? undefined
+                  : takePicture
             }
             disabled={isCapturing || mode === "qr"}
+            accessibilityLabel={
+              mode === "qr"
+                ? "QR code scanner active"
+                : mode === "gallery"
+                  ? "Select from gallery"
+                  : isCapturing
+                    ? "Capturing photo"
+                    : "Take photo"
+            }
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isCapturing || mode === "qr" }}
+            accessibilityHint={
+              mode === "qr"
+                ? "QR code scanning is active, wait for scan"
+                : mode === "gallery"
+                  ? "Opens gallery to select a receipt photo"
+                  : "Takes a photo of the receipt"
+            }
           >
             <MaterialIcons
               name={
                 isCapturing
                   ? "hourglass-empty"
                   : mode === "qr"
-                  ? "qr-code-scanner"
-                  : mode === "gallery"
-                  ? "photo-library"
-                  : "camera-alt"
+                    ? "qr-code-scanner"
+                    : mode === "gallery"
+                      ? "photo-library"
+                      : "camera-alt"
               }
               size={32}
               color="white"
@@ -321,6 +379,9 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
             <TouchableOpacity
               style={styles.flipButton}
               onPress={toggleCameraFacing}
+              accessibilityLabel="Flip camera"
+              accessibilityRole="button"
+              accessibilityHint="Switches between front and back camera"
             >
               <MaterialIcons
                 name="flip-camera-android"
@@ -340,6 +401,7 @@ export const CameraScreen: React.FC<CameraScreenProps> = ({
             onPress={onBack}
             variant="outline"
             style={styles.backButton}
+            accessibilityLabel="Go back to previous screen"
           />
         </View>
       )}

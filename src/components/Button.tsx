@@ -16,6 +16,9 @@ interface ButtonProps {
   disabled?: boolean;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
+  accessibilityRole?: "button" | "none";
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -26,6 +29,9 @@ export const Button: React.FC<ButtonProps> = ({
   disabled = false,
   style,
   textStyle,
+  accessibilityLabel,
+  accessibilityHint,
+  accessibilityRole = "button",
 }) => {
   const buttonStyle = [
     styles.button,
@@ -49,6 +55,10 @@ export const Button: React.FC<ButtonProps> = ({
       onPress={onPress}
       disabled={disabled}
       activeOpacity={0.7}
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={accessibilityLabel || title}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled }}
     >
       <Text style={buttonTextStyle}>{title}</Text>
     </TouchableOpacity>

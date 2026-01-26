@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Image } from "react-native";
+import React, { useEffect, useState, useCallback } from "react";
+import { View, Text, StyleSheet, ActivityIndicator, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Image } from "expo-image";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Button } from "../components/Button";
 import { theme } from "../constants/theme";
@@ -8,10 +9,19 @@ import {
   extractTextFromImage,
   parseReceiptText,
 } from "../utils/googleVisionAPI";
+import { ExtractedReceiptData } from "../types";
+import { captureException } from "../utils/sentry";
+import {
+  validateAndParse,
+  extractedReceiptDataSchema,
+} from "../utils/validation";
+
+const STEP_DELAY_MS = 500;
+const FINAL_STEP_DELAY_MS = 300;
 
 interface OCRProcessingScreenProps {
   imageUri: string;
-  onProcessingComplete: (extractedData: any) => void;
+  onProcessingComplete: (extractedData: ExtractedReceiptData) => void;
   onBack?: () => void;
 }
 
@@ -31,16 +41,33 @@ export const OCRProcessingScreen: React.FC<OCRProcessingScreenProps> = ({
     "Finalizing results...",
   ];
 
+  const handleProcessingComplete = useCallback(
+    (data: ExtractedReceiptData) => {
+      // Validate extracted data before passing it on
+      const validation = validateAndParse(extractedReceiptDataSchema, data);
+      if (validation.success) {
+        onProcessingComplete(validation.data);
+      } else {
+        // If validation fails, still pass the data but log the error
+        captureException(new Error("Invalid extracted receipt data"), {
+          validationError: validation.error,
+          data,
+        });
+        onProcessingComplete(data);
+      }
+    },
+    [onProcessingComplete]
+  );
+
   useEffect(() => {
     const processReceipt = async () => {
       try {
         // Check if this is QR data instead of an image
         if (imageUri.startsWith("qr-data:")) {
           const qrData = imageUri.replace("qr-data:", "");
-          console.log("Processing QR data:", qrData);
 
           // Create mock receipt data for QR codes
-          const extractedData = {
+          const extractedData: ExtractedReceiptData = {
             restaurantName: "QR Receipt",
             items: [{ name: "QR Code Item", price: 0, quantity: 1 }],
             subtotal: 0,
@@ -52,18 +79,18 @@ export const OCRProcessingScreen: React.FC<OCRProcessingScreenProps> = ({
 
           setProcessingStep(4);
           setProgress(100);
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          await new Promise((resolve) => setTimeout(resolve, STEP_DELAY_MS));
 
-          onProcessingComplete(extractedData);
+          handleProcessingComplete(extractedData);
           return;
         }
 
         // Step 1: Analyzing receipt image
         setProcessingStep(0);
         setProgress(20);
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, STEP_DELAY_MS));
 
-        // Step 2: Extracting text from receipt using Google Vision API
+        // Step 2: Extracting text from receipt using Azure Vision API
         setProcessingStep(1);
         setProgress(40);
 
@@ -76,7 +103,7 @@ export const OCRProcessingScreen: React.FC<OCRProcessingScreenProps> = ({
         // Step 3: Parsing receipt data
         setProcessingStep(2);
         setProgress(60);
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, STEP_DELAY_MS));
 
         // Step 4: Identifying items and prices
         setProcessingStep(3);
@@ -88,30 +115,36 @@ export const OCRProcessingScreen: React.FC<OCRProcessingScreenProps> = ({
         // Step 5: Finalizing results
         setProcessingStep(4);
         setProgress(100);
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await new Promise((resolve) =>
+          setTimeout(resolve, FINAL_STEP_DELAY_MS)
+        );
 
         // Complete processing with real OCR data
-        onProcessingComplete(extractedData);
+        handleProcessingComplete(extractedData);
       } catch (error) {
-        console.error("OCR Error:", error);
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        captureException(
+          error instanceof Error ? error : new Error(errorMessage),
+          { context: "OCRProcessing", imageUri }
+        );
+
         // Fallback to mock data if OCR fails
-        const fallbackData = {
+        const fallbackData: ExtractedReceiptData = {
           restaurantName: "OCR Processing Failed",
           items: [{ name: "Please try again", price: 0, quantity: 1 }],
           subtotal: 0,
           tax: 0,
           total: 0,
           date: new Date().toISOString(),
-          rawText: `OCR processing failed: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }. Please try taking a clearer photo.`,
+          rawText: `OCR processing failed: ${errorMessage}. Please try taking a clearer photo.`,
         };
-        onProcessingComplete(fallbackData);
+        handleProcessingComplete(fallbackData);
       }
     };
 
     processReceipt();
-  }, [imageUri, onProcessingComplete]);
+  }, [imageUri, handleProcessingComplete]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -123,21 +156,46 @@ export const OCRProcessingScreen: React.FC<OCRProcessingScreenProps> = ({
       </View>
 
       <View style={styles.imageContainer}>
-        <Image source={{ uri: imageUri }} style={styles.receiptImage} />
+        {!imageUri.startsWith("qr-data:") && (
+          <Image
+            source={{ uri: imageUri }}
+            style={styles.receiptImage}
+            contentFit="cover"
+            transition={200}
+            accessibilityLabel="Receipt image being processed"
+          />
+        )}
         <View style={styles.imageOverlay}>
           <MaterialIcons name="receipt" size={40} color="white" />
         </View>
       </View>
 
       <View style={styles.processingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <ActivityIndicator
+          size="large"
+          color={theme.colors.primary}
+          accessibilityLabel="Processing receipt"
+        />
 
         <View style={styles.stepContainer}>
-          <Text style={styles.currentStep}>
+          <Text
+            style={styles.currentStep}
+            accessibilityLiveRegion="polite"
+            accessibilityLabel={`Processing step: ${processingSteps[processingStep]}`}
+          >
             {processingSteps[processingStep]}
           </Text>
 
-          <View style={styles.progressBar}>
+          <View
+            style={styles.progressBar}
+            accessibilityRole="progressbar"
+            accessibilityValue={{
+              min: 0,
+              max: 100,
+              now: progress,
+              text: `${Math.round(progress)}% complete`,
+            }}
+          >
             <View style={[styles.progressFill, { width: `${progress}%` }]} />
           </View>
 
@@ -154,16 +212,16 @@ export const OCRProcessingScreen: React.FC<OCRProcessingScreenProps> = ({
                   index < processingStep
                     ? "check-circle"
                     : index === processingStep
-                    ? "radio-button-checked"
-                    : "radio-button-unchecked"
+                      ? "radio-button-checked"
+                      : "radio-button-unchecked"
                 }
                 size={20}
                 color={
                   index < processingStep
                     ? theme.colors.success
                     : index === processingStep
-                    ? theme.colors.primary
-                    : theme.colors.textSecondary
+                      ? theme.colors.primary
+                      : theme.colors.textSecondary
                 }
               />
               <Text
@@ -186,7 +244,12 @@ export const OCRProcessingScreen: React.FC<OCRProcessingScreenProps> = ({
 
       {onBack && (
         <View style={styles.backContainer}>
-          <Button title="Go Back" onPress={onBack} variant="outline" />
+          <Button
+            title="Go Back"
+            onPress={onBack}
+            variant="outline"
+            accessibilityLabel="Go back to camera screen"
+          />
         </View>
       )}
     </SafeAreaView>

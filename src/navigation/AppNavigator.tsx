@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
-import { createStackNavigator } from "@react-navigation/stack";
 import { SplashScreen } from "../screens/SplashScreen";
 import { PayeesScreen } from "../screens/PayeesScreen";
 import { CameraScreen } from "../screens/CameraScreen";
@@ -12,25 +11,12 @@ import { TipScreen } from "../screens/TipScreen";
 import { ReviewScreen } from "../screens/ReviewScreen";
 import { theme } from "../constants/theme";
 import { Currency, DEFAULT_CURRENCY } from "../constants/currencies";
-
-const Stack = createStackNavigator();
-
-interface Payee {
-  id: string;
-  name: string;
-}
-
-interface ReceiptItem {
-  id: string;
-  name: string;
-  price: number;
-}
-
-interface ItemAssignment {
-  itemId: string;
-  payees: Payee[];
-  isSplit: boolean;
-}
+import {
+  Payee,
+  ReceiptItem,
+  ItemAssignment,
+  ExtractedReceiptData,
+} from "../types";
 
 export const AppNavigator: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState("Splash");
@@ -43,7 +29,8 @@ export const AppNavigator: React.FC = () => {
     useState<Currency>(DEFAULT_CURRENCY);
   const [restaurantName, setRestaurantName] = useState("");
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
-  const [extractedData, setExtractedData] = useState<any>(null);
+  const [extractedData, setExtractedData] =
+    useState<ExtractedReceiptData | null>(null);
 
   const handleSplashComplete = () => {
     setCurrentScreen("Payees");
@@ -69,24 +56,16 @@ export const AppNavigator: React.FC = () => {
     setCurrentScreen("Payees");
   };
 
-  const handleOCRComplete = (data: any) => {
+  const handleOCRComplete = (data: ExtractedReceiptData) => {
     setExtractedData(data);
     setCurrentScreen("MockReceipt");
   };
 
   const handleReceiptContinue = (receiptItems: ReceiptItem[]) => {
-    // Use OCR data if available, otherwise use the passed items
-    const itemsToUse =
-      extractedData?.items?.length > 0
-        ? extractedData.items.map((item: any, index: number) => ({
-            id: `ocr-${index}`,
-            name: item.name,
-            price: item.price,
-          }))
-        : receiptItems;
-
-    setItems(itemsToUse);
-    setSubtotal(itemsToUse.reduce((sum, item) => sum + item.price, 0));
+    // Always use the passed receiptItems (from MockReceiptScreen or OCR)
+    // This ensures mock data matches what's shown on the assignment screen
+    setItems(receiptItems);
+    setSubtotal(receiptItems.reduce((sum, item) => sum + item.price, 0));
     setCurrentScreen("ItemAssignment");
   };
 
@@ -100,9 +79,9 @@ export const AppNavigator: React.FC = () => {
     setCurrentScreen("Review");
   };
 
-  const handleShare = () => {
-    // TODO: Implement sharing functionality
-    console.log("Share breakdown");
+  const handleShare = async () => {
+    // Share functionality is handled in ReviewScreen via PDF generation
+    // This is kept as a fallback if PDF sharing fails
   };
 
   const handleStartOver = () => {
@@ -163,7 +142,6 @@ export const AppNavigator: React.FC = () => {
             restaurantName={extractedData?.restaurantName || restaurantName}
             onContinue={handleReceiptContinue}
             onBack={handleReceiptBack}
-            onViewOCRData={() => setCurrentScreen("OCRData")}
           />
         );
       case "ItemAssignment":
@@ -204,9 +182,7 @@ export const AppNavigator: React.FC = () => {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Main" component={() => renderCurrentScreen()} />
-      </Stack.Navigator>
+      {renderCurrentScreen()}
     </NavigationContainer>
   );
 };

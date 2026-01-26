@@ -1,22 +1,32 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, StyleSheet, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Image } from "expo-image";
 import { theme } from "../constants/theme";
+
+const logoLight = require("../../assets/logo_light.png");
 
 interface SplashScreenProps {
   onComplete: () => void;
 }
 
+const SPLASH_DURATION = 2000;
+const ANIMATION_DURATION = 800;
+
 export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
+
+  const handleComplete = useCallback(() => {
+    onComplete();
+  }, [onComplete]);
 
   useEffect(() => {
     // Animate in
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 800,
+        duration: ANIMATION_DURATION,
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
@@ -29,11 +39,11 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
 
     // Navigate after delay
     const timer = setTimeout(() => {
-      onComplete();
-    }, 2000);
+      handleComplete();
+    }, SPLASH_DURATION);
 
     return () => clearTimeout(timer);
-  }, [fadeAnim, scaleAnim, onComplete]);
+  }, [fadeAnim, scaleAnim, handleComplete]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -45,13 +55,19 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
             transform: [{ scale: scaleAnim }],
           },
         ]}
+        accessible={true}
+        accessibilityRole="header"
+        accessibilityLabel="Splitt App Splash Screen"
       >
         <View style={styles.logoContainer}>
-          <Text style={styles.logo}>💰</Text>
-          <Text style={styles.appName}>SPLITT</Text>
+          <Image
+            source={logoLight}
+            style={styles.logo}
+            contentFit="contain"
+            accessible={true}
+            accessibilityLabel="Splitt logo"
+          />
         </View>
-
-        <Text style={styles.tagline}>Split bills effortlessly</Text>
       </Animated.View>
     </SafeAreaView>
   );
@@ -70,22 +86,9 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: "center",
-    marginBottom: theme.spacing.xl,
   },
   logo: {
-    fontSize: 64,
-    marginBottom: theme.spacing.md,
-  },
-  appName: {
-    ...theme.typography.h1,
-    color: "white",
-    fontWeight: "bold",
-    letterSpacing: 2,
-  },
-  tagline: {
-    ...theme.typography.h3,
-    color: "white",
-    textAlign: "center",
-    opacity: 0.9,
+    width: 220,
+    height: 220,
   },
 });
