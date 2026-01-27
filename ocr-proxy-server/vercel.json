@@ -1,13 +1,3 @@
 {
-  "version": 2,
-  "rewrites": [
-    {
-      "source": "/health",
-      "destination": "/api/health"
-    },
-    {
-      "source": "/ocr",
-      "destination": "/api/ocr"
-    }
-  ]
+  "version": 2
 }
