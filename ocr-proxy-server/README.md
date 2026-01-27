@@ -77,5 +77,5 @@ Update `src/utils/googleVisionAPI.ts` to use your proxy URL instead of calling G
 1. Create new Web Service
 2. Connect your repo
 3. Set build command: `npm install`
-4. Set start command: `node index.js`
+4. Build Command: Leave empty (Vercel auto-detects /api functions)
 5. Add `GOOGLE_VISION_API_KEY` environment variable
