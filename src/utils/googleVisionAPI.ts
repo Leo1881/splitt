@@ -17,7 +17,7 @@ const OCR_PROXY_URL =
   process.env.EXPO_PUBLIC_OCR_PROXY_URL || "http://localhost:3000";
 
 // Fallback: Direct Google Vision API (less secure - only use if proxy unavailable)
-const USE_DIRECT_API = true; // Set to true for now - we'll secure it later
+const USE_DIRECT_API = false; // Set to false to use secure proxy
 const GOOGLE_VISION_API_KEY =
   process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY || "";
 const GOOGLE_VISION_API_URL = `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_VISION_API_KEY}`;
