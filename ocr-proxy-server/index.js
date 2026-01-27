@@ -5,7 +5,6 @@
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
-const FormData = require('form-data');
 const fetch = require('node-fetch');
 
 const app = express();
@@ -26,7 +25,18 @@ if (!GOOGLE_VISION_API_KEY) {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'OCR Proxy Server is running' });
+  try {
+    res.json({ 
+      status: 'ok', 
+      message: 'OCR Proxy Server is running',
+      hasApiKey: !!GOOGLE_VISION_API_KEY 
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      status: 'error', 
+      message: error.message 
+    });
+  }
 });
 
 // OCR endpoint - accepts both file upload and base64 JSON
@@ -136,12 +146,6 @@ app.post('/ocr', upload.single('image'), async (req, res) => {
   }
 });
 
-// Start server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`OCR Proxy Server running on port ${PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/health`);
-});
-
 // Export for Vercel/serverless
+// Vercel will handle routing automatically based on vercel.json
 module.exports = app;
