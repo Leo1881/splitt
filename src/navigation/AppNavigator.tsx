@@ -9,6 +9,7 @@ import { MockReceiptScreen } from "../screens/MockReceiptScreen";
 import { ItemAssignmentScreen } from "../screens/ItemAssignmentScreen";
 import { TipScreen } from "../screens/TipScreen";
 import { ReviewScreen } from "../screens/ReviewScreen";
+import { CropImageScreen } from "../screens/CropImageScreen";
 import { theme } from "../constants/theme";
 import { Currency, DEFAULT_CURRENCY } from "../constants/currencies";
 import {
@@ -49,6 +50,11 @@ export const AppNavigator: React.FC = () => {
 
   const handlePhotoTaken = (photoUri: string) => {
     setCapturedPhoto(photoUri);
+    setCurrentScreen("CropImage"); // Show crop screen first
+  };
+
+  const handleCropComplete = (croppedImageUri: string) => {
+    setCapturedPhoto(croppedImageUri);
     setCurrentScreen("OCRProcessing");
   };
 
@@ -58,7 +64,7 @@ export const AppNavigator: React.FC = () => {
 
   const handleOCRComplete = (data: ExtractedReceiptData) => {
     setExtractedData(data);
-    setCurrentScreen("MockReceipt");
+    setCurrentScreen("OCRData"); // Show OCR data screen first so user can see what was extracted
   };
 
   const handleReceiptContinue = (receiptItems: ReceiptItem[]) => {
@@ -119,6 +125,14 @@ export const AppNavigator: React.FC = () => {
             onBack={handleCameraBack}
           />
         );
+      case "CropImage":
+        return (
+          <CropImageScreen
+            imageUri={capturedPhoto || ""}
+            onCropComplete={handleCropComplete}
+            onBack={handleCameraBack}
+          />
+        );
       case "OCRProcessing":
         return (
           <OCRProcessingScreen
@@ -132,7 +146,7 @@ export const AppNavigator: React.FC = () => {
           <OCRDataScreen
             extractedData={extractedData}
             onContinue={() => setCurrentScreen("MockReceipt")}
-            onBack={() => setCurrentScreen("MockReceipt")}
+            onBack={() => setCurrentScreen("Camera")}
           />
         );
       case "MockReceipt":

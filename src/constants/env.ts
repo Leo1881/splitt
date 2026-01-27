@@ -2,14 +2,10 @@ import Constants from "expo-constants";
 
 // Environment variables using expo-constants
 export const ENV = {
-  // Azure Vision API
-  AZURE_VISION_API_KEY:
-    Constants.expoConfig?.extra?.azureVisionApiKey ||
-    process.env.EXPO_PUBLIC_AZURE_VISION_API_KEY ||
-    "",
-  AZURE_VISION_ENDPOINT:
-    Constants.expoConfig?.extra?.azureVisionEndpoint ||
-    process.env.EXPO_PUBLIC_AZURE_VISION_ENDPOINT ||
+  // Google Vision API
+  GOOGLE_VISION_API_KEY:
+    Constants.expoConfig?.extra?.googleVisionApiKey ||
+    process.env.EXPO_PUBLIC_GOOGLE_VISION_API_KEY ||
     "",
 
   // Sentry

@@ -8,3 +8,4 @@ export { MockReceiptScreen } from "./MockReceiptScreen";
 export { ItemAssignmentScreen } from "./ItemAssignmentScreen";
 export { TipScreen } from "./TipScreen";
 export { ReviewScreen } from "./ReviewScreen";
+export { CropImageScreen } from "./CropImageScreen";

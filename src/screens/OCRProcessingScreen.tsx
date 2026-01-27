@@ -90,7 +90,7 @@ export const OCRProcessingScreen: React.FC<OCRProcessingScreenProps> = ({
         setProgress(20);
         await new Promise((resolve) => setTimeout(resolve, STEP_DELAY_MS));
 
-        // Step 2: Extracting text from receipt using Azure Vision API
+        // Step 2: Extracting text from receipt using Google Vision API
         setProcessingStep(1);
         setProgress(40);
 
