@@ -87,7 +87,7 @@ const extractTextViaProxy = async (
 ): Promise<OCRResult> => {
   try {
     // Send base64 image as JSON (simpler for React Native)
-    const response = await fetch(`${OCR_PROXY_URL}/ocr`, {
+    const response = await fetch(`${OCR_PROXY_URL}/api/ocr`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
