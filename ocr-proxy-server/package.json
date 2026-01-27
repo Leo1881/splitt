@@ -2,10 +2,8 @@
   "name": "splitt-ocr-proxy",
   "version": "1.0.0",
   "description": "Secure OCR proxy server for Splitt app",
-  "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "echo 'This is a Vercel serverless function - deploy to Vercel'"
   },
   "dependencies": {
     "node-fetch": "^2.7.0"
