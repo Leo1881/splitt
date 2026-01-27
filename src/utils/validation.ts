@@ -61,9 +61,11 @@ export function validateAndParse<T>(
     return { success: true, data: parsed };
   } catch (error) {
     if (error instanceof z.ZodError) {
+      // ZodError exposes validation issues via the `issues` array
+      const messages = (error.issues ?? []).map((issue) => issue.message);
       return {
         success: false,
-        error: error.errors.map((e) => e.message).join(", "),
+        error: messages.join(", ") || "Validation failed",
       };
     }
     return { success: false, error: "Validation failed" };
