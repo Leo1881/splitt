@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TextInput, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
@@ -49,6 +49,48 @@ export const TipScreen: React.FC<TipScreenProps> = ({
   }, []);
 
   const handleContinue = useCallback(() => {
+    // Check if tip amount exceeds bill amount
+    if (tipAmount > subtotal && subtotal > 0) {
+      Alert.alert(
+        "Tip Exceeds Bill Amount",
+        `Your tip of ${currency.symbol}${tipAmount.toFixed(2)} exceeds the bill amount of ${currency.symbol}${subtotal.toFixed(2)}. Are you sure you want to continue?`,
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Continue",
+            style: "default",
+            onPress: () => {
+              const validation = validateAndParse(tipSchema, {
+                amount: tipAmount,
+                percentage: useCustomTip
+                  ? subtotal > 0
+                    ? Math.round((tipAmount / subtotal) * 100)
+                    : 0
+                  : tipPercentage,
+              });
+
+              if (!validation.success) {
+                // Tip validation failed, but we'll still continue
+                // The validation is mainly for data integrity
+              }
+
+              const finalPercentage = useCustomTip
+                ? subtotal > 0
+                  ? Math.round((tipAmount / subtotal) * 100)
+                  : 0
+                : tipPercentage;
+
+              onContinue(tipAmount, finalPercentage);
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     const validation = validateAndParse(tipSchema, {
       amount: tipAmount,
       percentage: useCustomTip
@@ -70,7 +112,7 @@ export const TipScreen: React.FC<TipScreenProps> = ({
       : tipPercentage;
 
     onContinue(tipAmount, finalPercentage);
-  }, [tipAmount, tipPercentage, useCustomTip, subtotal, onContinue]);
+  }, [tipAmount, tipPercentage, useCustomTip, subtotal, currency, onContinue]);
 
   return (
     <SafeAreaView style={styles.container}>
