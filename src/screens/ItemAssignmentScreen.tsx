@@ -91,7 +91,17 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
       if (totalAssigned !== selectedItem.quantity) {
         Alert.alert(
           "Invalid Quantities",
-          `Total assigned (${totalAssigned}) must equal item quantity (${selectedItem.quantity}). Please adjust the quantities.`
+          `Total assigned (${totalAssigned}) must equal item quantity (${selectedItem.quantity}). Please adjust the quantities so they add up to exactly ${selectedItem.quantity}.`
+        );
+        return;
+      }
+      
+      // Additional check: ensure no payee has quantity 0 when splitting
+      const hasZeroQuantity = Object.values(payeeQuantities).some((qty) => qty === 0);
+      if (hasZeroQuantity) {
+        Alert.alert(
+          "Invalid Quantities",
+          "Each selected person must be assigned at least 1 item. Please adjust the quantities or deselect people with 0 quantity."
         );
         return;
       }
@@ -138,12 +148,43 @@ export const ItemAssignmentScreen: React.FC<ItemAssignmentScreenProps> = ({
     []
   );
 
-  const updatePayeeQuantity = useCallback((payeeId: string, quantity: number) => {
-    if (quantity < 0) return;
-    const maxQuantity = selectedItem?.quantity || 1;
-    const clampedQuantity = Math.min(quantity, maxQuantity);
-    setPayeeQuantities((prev) => ({ ...prev, [payeeId]: clampedQuantity }));
-  }, [selectedItem]);
+  const updatePayeeQuantity = useCallback(
+    (payeeId: string, quantity: number) => {
+      if (quantity < 0) return;
+      if (!selectedItem) return;
+
+      const maxQuantity = selectedItem.quantity || 1;
+      
+      // For items with quantity > 1, ensure total doesn't exceed item quantity
+      if (selectedItem.quantity > 1) {
+        const currentTotal = Object.entries(payeeQuantities).reduce(
+          (sum, [id, qty]) => {
+            // Don't count the current payee's quantity in the sum
+            return id === payeeId ? sum : sum + qty;
+          },
+          0
+        );
+        
+        // Calculate the maximum this payee can have
+        const remainingQuantity = maxQuantity - currentTotal;
+        const clampedQuantity = Math.min(
+          Math.max(0, quantity), // Ensure non-negative
+          maxQuantity, // Can't exceed item quantity individually
+          remainingQuantity // Can't exceed remaining quantity
+        );
+        
+        setPayeeQuantities((prev) => ({
+          ...prev,
+          [payeeId]: clampedQuantity,
+        }));
+      } else {
+        // For single items, just clamp to max
+        const clampedQuantity = Math.min(quantity, maxQuantity);
+        setPayeeQuantities((prev) => ({ ...prev, [payeeId]: clampedQuantity }));
+      }
+    },
+    [selectedItem, payeeQuantities]
+  );
 
   const getAssignmentText = useCallback(
     (assignment: ItemAssignment) => {
